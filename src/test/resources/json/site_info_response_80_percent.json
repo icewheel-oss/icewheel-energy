@@ -1,0 +1,7 @@
+{
+  "response": {
+    "site_name": "My Test Home",
+    "backup_reserve_percent": 80,
+    "installation_time_zone": "America/New_York"
+  }
+}

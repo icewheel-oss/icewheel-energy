@@ -1,0 +1,78 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='Terms of Service')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+    <div class="bg-body p-5 rounded-3 shadow-sm">
+        <h1 class="display-5">Terms of Service</h1>
+        <p class="text-muted">Last Updated: August 15, 2025</p>
+        <hr>
+
+        <h2 class="h4 mt-4">1. Acceptance of Terms</h2>
+        <p>By accessing or using the IceWheel Energy application ("the Service"), you agree to be bound by these Terms
+            of Service ("Terms"). If you do not agree to these Terms, you may not use the Service. The Service is
+            provided by IceWheel LLC.</p>
+
+        <h2 class="h4 mt-4">2. License</h2>
+        <p>The Service is licensed to you under the terms of the GNU General Public License, version 3 (GPLv3). A copy
+            of the license is available within the application and can be viewed at <a
+                    th:href="@{/license}">/license</a>. You are free to use, modify, and distribute the software in
+            accordance with the GPLv3.</p>
+
+        <h2 class="h4 mt-4">3. Disclaimer of Warranty</h2>
+        <p>THE SERVICE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+            TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. THE ENTIRE RISK
+            AS TO THE QUALITY AND PERFORMANCE OF THE SERVICE IS WITH YOU.</p>
+
+        <h2 class="h4 mt-4">4. Limitation of Liability</h2>
+        <p>IN NO EVENT SHALL ICEWHEEL LLC OR ITS DEVELOPERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+            IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SERVICE OR THE
+            USE OR OTHER DEALINGS IN THE SERVICE. THIS INCLUDES, BUT IS NOT LIMITED TO, ANY DIRECT, INDIRECT,
+            INCIDENTAL, SPECIAL, OR CONSEQUENTIAL DAMAGES, SUCH AS DAMAGE TO YOUR TESLA ENERGY PRODUCTS, LOSS OF DATA,
+            OR FINANCIAL LOSSES.</p>
+        <p><strong>You acknowledge and agree that you use this Service at your own risk.</strong></p>
+
+        <h2 class="h4 mt-4">5. User Responsibilities</h2>
+        <p>You are solely responsible for your use of the Service and for any consequences thereof. You are responsible
+            for ensuring that your use of the Service complies with all applicable laws, regulations, and the terms of
+            service of any third-party services you use in conjunction with the Service (such as your Tesla
+            account).</p>
+
+        <h2 class="h4 mt-4">6. Changes to Terms</h2>
+        <p>IceWheel LLC reserves the right to modify these Terms at any time. We will notify you of any changes by
+            posting the new Terms on this page. You are advised to review these Terms periodically for any changes.</p>
+
+        <h2 class="h4 mt-4">7. Support and Appreciation</h2>
+        <p>This software is developed and maintained in the spirit of open source. If you find IceWheel Energy useful,
+            please consider showing your appreciation by starring the project on its source code repository. Your
+            support helps motivate continued development and improvement.</p>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>

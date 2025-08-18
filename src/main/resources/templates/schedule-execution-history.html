@@ -1,0 +1,110 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <th:block th:replace="~{fragments/header :: head(pageTitle='Schedule Trigger Log')}"></th:block>
+    <!-- Custom styles for the timeline view -->
+    <style>
+        .timeline {
+            position: relative;
+            padding-left: 1rem; /* Space for the line */
+        }
+        .timeline-item {
+            position: relative;
+            padding-left: 2.5rem; /* Space for the icon */
+            padding-bottom: 2rem;
+            border-left: 2px solid var(--bs-border-color);
+        }
+        .timeline-item:last-child {
+            border-left-color: transparent; /* End the line on the last item */
+        }
+        .timeline-icon {
+            position: absolute;
+            left: -0.8rem; /* Center the icon on the line */
+            top: 0;
+            width: 1.5rem;
+            height: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='schedules')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6">Schedule Trigger Log</h1>
+        <a th:href="@{/schedules}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Schedules
+        </a>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${executionPage.empty}" class="text-center p-5 bg-body-tertiary rounded-3">
+        <i class="bi bi-robot display-3 text-secondary"></i>
+        <h2 class="h4 mt-3">No Triggers Found</h2>
+        <p class="col-lg-8 mx-auto fs-5 text-muted">
+            No schedules have been automatically triggered yet. This log will populate as your automations run.
+        </p>
+    </div>
+
+    <!-- History Timeline -->
+    <div th:unless="${executionPage.empty}" class="timeline">
+        <div th:each="event, iterStat : ${executionPage.content}" class="timeline-item">
+            <div class="timeline-icon" th:classappend="${event.status.name() == 'SUCCESS' ? 'bg-success-subtle text-success-emphasis' :
+                                                     event.status.name() == 'FAILURE' ? 'bg-danger-subtle text-danger-emphasis' :
+                                                     'bg-secondary-subtle text-secondary-emphasis'}">
+                <i th:if="${event.status.name() == 'SUCCESS'}" class="bi bi-check-lg"></i>
+                <i th:if="${event.status.name() == 'FAILURE'}" class="bi bi-x-lg"></i>
+                <i th:if="${event.status.name() == 'SKIPPED'}" class="bi bi-info-lg"></i>
+            </div>
+            <div class="card shadow-sm" th:classappend="${iterStat.odd} ? 'bg-body-tertiary' : ''">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start">
+                        <h5 class="card-title mb-1" th:text="${event.scheduleName}">Schedule Name</h5>
+                        <small class="text-muted" th:text="${#temporals.format(event.timestamp, 'MMM dd, yyyy HH:mm:ss')}"></small>
+                    </div>
+                    <p class="card-text text-muted" th:text="${event.details}">Event details go here.</p>
+                    <span class="badge"
+                          th:classappend="${event.status.name() == 'SUCCESS' ? 'bg-success-subtle text-success-emphasis' :
+                                           event.status.name() == 'FAILURE' ? 'bg-danger-subtle text-danger-emphasis' :
+                                           'bg-secondary-subtle text-secondary-emphasis'}"
+                          th:text="${#strings.capitalize(event.status.name().toLowerCase())}">
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div th:replace="~{fragments/pagination :: pagination(page=${executionPage}, url='/schedules/executions')}"></div>
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>

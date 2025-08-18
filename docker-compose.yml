@@ -1,0 +1,32 @@
+# This Docker Compose file sets up the application environment using a persistent H2 file database.
+# It uses an external application.yml for configuration and persists data in a local directory.
+#
+# To run:
+# 1. Build the Spring Boot application image: `./mvnw spring-boot:build-image`
+# 2. Create a directory for your data and configuration: `mkdir ./data`
+# 3. Copy `application.yaml.template` to `./data/application.yml` and fill in your secrets.
+# 4. Run `docker-compose up`
+#
+version: '3.8'
+
+services:
+  # Spring Boot Application Service
+  app:
+    image: icewheel-energy:0.0.1-SNAPSHOT
+    container_name: icewheel-app
+    restart: no
+    ports:
+      - "8081:8081"
+    volumes:
+      # Mounts the host's './data' directory to '/data' inside the container.
+      # This directory will store both the H2 database file and the configuration.
+      - ./data:/data
+    environment:
+      # Spring Profile
+      - SPRING_PROFILES_ACTIVE=h2
+      # Tell Spring Boot to load the external config file from the mounted volume.
+      - SPRING_CONFIG_LOCATION=file:/data/application.yml
+      # Override the datasource URL to use an absolute path inside the container, ensuring the DB is also stored in the volume.
+      # Why: The H2 INIT script is removed from the URL. Database initialization is now handled reliably by Spring Boot
+      # using `schema.sql` because `spring.sql.init.mode=always` is set in the base configuration.
+      - SPRING_DATASOURCE_URL=jdbc:h2:file:/data/tesladb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH

@@ -1,0 +1,280 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='API Token Management')}"></head>
+
+<!--
+  - Page-specific styles for the token accordion list.
+  - This creates a "zebra stripe" effect for better readability.
+-->
+<style>
+    /* Give even items a different background color using a theme-aware Bootstrap variable */
+    #tokenAccordion .accordion-item:nth-of-type(even) {
+        background-color: var(--bs-tertiary-bg);
+    }
+
+    /*
+      The accordion button has its own background. We make it transparent on even items
+      so the parent's new background color shows through.
+    */
+    #tokenAccordion .accordion-item:nth-of-type(even) .accordion-button {
+        background-color: transparent;
+    }
+
+    /*
+      When an even-item's button is active (expanded), we must restore Bootstrap's
+      standard active background color so it stands out.
+    */
+    #tokenAccordion .accordion-item:nth-of-type(even) .accordion-button:not(.collapsed) {
+        background-color: var(--bs-accordion-active-bg);
+        color: var(--bs-accordion-active-color);
+    }
+
+    /* Set a max-height for the scrollable claims table */
+    .claims-table-wrapper {
+        max-height: 250px;
+    }
+
+    /*
+      By default, Bootstrap's accordion items are designed to be stacked.
+      Since we add a margin between them (mb-3), we need to override
+      Bootstrap's default styling to ensure each item has its own
+      complete border and rounded corners, making them look like distinct cards.
+    */
+    #tokenAccordion .accordion-item {
+        border-radius: var(--bs-accordion-border-radius);
+        border: var(--bs-accordion-border-width) solid var(--bs-accordion-border-color);
+    }
+
+    /*
+      We also need to fix the button's corners. Bootstrap removes the top radius
+      for items that aren't the first in a stack. Since our items are separate cards,
+      this ensures the button's corners are always correctly rounded.
+      When collapsed, all corners are rounded. When expanded, the bottom corners become
+      sharp to seamlessly connect with the accordion body.
+    */
+    #tokenAccordion .accordion-button {
+        border-radius: var(--bs-accordion-inner-border-radius);
+    }
+    #tokenAccordion .accordion-button:not(.collapsed) {
+        border-bottom-left-radius: 0;
+        border-bottom-right-radius: 0;
+    }
+</style>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+    <nav th:replace="~{fragments/header :: navbar(activePage='developer')}"></nav>
+
+    <main class="container my-5 flex-grow-1">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="display-6">API Token Management</h1>
+            <a th:href="@{/developer/application-info}" class="btn btn-outline-secondary">
+                <i class="bi bi-shield-lock-fill me-2"></i>View Application Key
+            </a>
+        </div>
+
+        <!-- Case 1: Tesla account is NOT connected -->
+        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-stars display-3 text-primary"></i>
+            <h1 class="display-5 fw-bold mt-3">Unlock Your Home's Energy Potential</h1>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                Connect your Tesla account to automate your energy usage, maximize savings, and gain full control over your Powerwall and solar systems.
+            </p>
+            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+                <i class="bi bi-plug-fill me-2"></i>
+                Securely Connect to Tesla
+            </a>
+        </div>
+
+        <!-- Case 2: No token found -->
+        <div th:if="${teslaConnected and tokenDetails.isEmpty()}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-key-fill display-3 text-secondary"></i>
+            <h2 class="h4 mt-3">No API Token Found</h2>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                An API token is required for developer access. Please connect your Tesla account from the dashboard to generate a token.
+            </p>
+            <a href="/user-profile" class="btn btn-primary mt-3">
+                <i class="bi bi-person-circle me-2"></i>
+                Go to Dashboard
+            </a>
+        </div>
+
+        <!-- Case 3: Tokens are found, display as an accordion -->
+        <div class="accordion" id="tokenAccordion" th:if="${teslaConnected and !tokenDetails.isEmpty()}">
+            <div class="accordion-item mb-3" th:each="detail, iter : ${tokenDetails}">
+                <h2 class="accordion-header" th:id="'heading' + ${iter.index}">
+                    <button class="accordion-button" th:classappend="${iter.index != 0} ? 'collapsed'" type="button" data-bs-toggle="collapse" th:data-bs-target="'#collapse' + ${iter.index}" th:aria-expanded="${iter.index == 0}" th:aria-controls="'collapse' + ${iter.index}">
+                        <div class="d-flex w-100 justify-content-between align-items-center pe-2">
+                            <span class="h6 mb-0">                                Token created on <span class="fw-normal local-datetime" th:attr="data-timestamp=${detail.token.createdAt.getEpochSecond()}" th:text="${dateTimeUtil.formatInstant(detail.token.createdAt, timezone)}"></span>
+                            </span>
+                            <div>
+                                <!-- The newest token is active; older unexpired tokens are superseded. -->
+                                <th:block th:if="${iter.index == 0}">
+                                    <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-success-subtle text-success-emphasis rounded-pill">Active</span>
+                                    <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Expired</span>
+                                </th:block>
+                                <th:block th:if="${iter.index != 0}">
+                                    <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">Superseded</span>
+                                    <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Expired</span>
+                                </th:block>
+                            </div>
+                        </div>
+                    </button>
+                </h2>
+                <div th:id="'collapse' + ${iter.index}" class="accordion-collapse collapse" th:classappend="${iter.index == 0} ? 'show'" th:aria-labelledby="'heading' + ${iter.index}">
+                    <div class="accordion-body">
+                        <div class="alert alert-warning d-flex align-items-center" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <div>
+                                Treat this token like a password. Do not share it or expose it in client-side code.
+                            </div>
+                        </div>
+
+                        <h6 class="mt-4">Access Token</h6>
+                        <div class="p-3 bg-body-tertiary rounded d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <code class="text-break">
+                                    <th:block th:with="tokenParts=${#strings.arraySplit(detail.token.accessToken, '.')}">
+                                        <span class="text-danger" th:text="${tokenParts[0]}"></span><!--
+                                     --><span th:if="${#arrays.length(tokenParts) > 1}">.</span><!--
+                                     --><span class="text-primary" th:if="${#arrays.length(tokenParts) > 1}" th:text="${tokenParts[1]}"></span><!--
+                                     --><span th:if="${#arrays.length(tokenParts) > 2}">.</span><!--
+                                     --><span class="text-info" th:if="${#arrays.length(tokenParts) > 2}" th:text="${tokenParts[2]}"></span>
+                                    </th:block>
+                                </code>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary copy-btn" th:attr="data-copy-text=${detail.token.accessToken}">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+
+                        <h6 class="mt-4">Refresh Token</h6>
+                        <div class="p-3 bg-body-tertiary rounded d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="flex-grow-1" style="min-width: 0;">
+                                <code class="text-break" th:text="${detail.token.refreshToken}"></code>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary copy-btn" th:attr="data-copy-text=${detail.token.refreshToken}">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+
+                        <h6 class="mt-4">Decoded Access Token (JSON Payload)</h6>
+                        <div class="p-3 bg-body-tertiary rounded d-flex flex-wrap align-items-start justify-content-between gap-2">
+                            <div class="flex-grow-1" style="min-width: 0; max-height: 250px; overflow-y: auto;">
+                                <pre><code class="text-break" th:text="${detail.accessTokenPayloadJson}"></code></pre>
+                            </div>
+                            <button class="btn btn-sm btn-outline-secondary copy-btn"
+                                    th:attr="data-copy-text=${detail.accessTokenPayloadJson}">
+                                <i class="bi bi-clipboard"></i> Copy
+                            </button>
+                        </div>
+
+                        <div class="row mt-4">
+                            <!-- Token Details Column -->
+                            <div class="col-lg-6">
+                                <h6 class="mb-3">Details</h6>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <span>Access Token Status</span>
+                                        <div>
+                                            <th:block th:if="${iter.index == 0}">
+                                                <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">Active</span>
+                                                <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
+                                            </th:block>
+                                            <th:block th:if="${iter.index != 0}">
+                                                <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">Superseded</span>
+                                                <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
+                                            </th:block>
+                                            <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.expiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.expiration, timezone)}"></span>
+                                        </div>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                        <span>Refresh Token Status</span>
+                                        <div>
+                                            <!-- The newest token is active until its 3-month expiry. Older tokens are considered superseded. -->
+                                            <th:block th:if="${iter.index == 0}">
+                                                <span th:if="${detail.token.refreshTokenExpiration > #dates.createNow().getTime() / 1000}" class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">Active</span>
+                                                <span th:unless="${detail.token.refreshTokenExpiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
+                                            </th:block>
+                                            <th:block th:if="${iter.index != 0}">
+                                                <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">Superseded</span>
+                                            </th:block>
+                                            <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.refreshTokenExpiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.refreshTokenExpiration, timezone)}"></span>
+                                        </div>
+                                    </li>
+                                    <li class="list-group-item px-0">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Scope</span>
+                                        </div>
+                                        <div class="mt-1" th:if="${!detail.scopes.isEmpty()}">
+                                            <span th:each="s : ${detail.scopes}" class="badge bg-secondary-subtle text-secondary-emphasis me-1 mb-1 fw-normal" th:text="${s}"></span>
+                                        </div>
+                                    </li>
+                                </ul>
+                            </div>
+
+                            <!-- Decoded Claims Column -->
+                            <div class="col-lg-6 mt-4 mt-lg-0">
+                                <h6 class="mb-3">Decoded Claims</h6>
+                                <div th:if="${detail.accessTokenClaims.get('error') == null}" class="table-responsive border rounded-2 claims-table-wrapper">
+                                    <table class="table table-sm table-striped table-hover mb-0">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th class="fw-semibold">Claim</th>
+                                                <th class="fw-semibold">Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr th:each="claim : ${detail.accessTokenClaims}">
+                                                <td class="font-monospace fs-sm" th:text="${claim.key}"></td>
+                                                <td>
+                                                    <span th:if="${#lists.contains({'exp', 'iat', 'nbf'}, claim.key)}" class="fs-sm local-datetime" th:attr="data-timestamp=${claim.value}" th:text="${dateTimeUtil.formatTimestamp(claim.value, timezone)}"></span>
+                                                    <code th:unless="${#lists.contains({'exp', 'iat', 'nbf'}, claim.key)}" class="text-break fs-sm" th:text="${claim.value}"></code>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div th:if="${detail.accessTokenClaims.get('error') != null}" class="text-muted mt-1" th:text="${detail.accessTokenClaims.get('error')}"></div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-end">
+                            <form th:action="@{/refresh-access-token/{tokenId}(tokenId=${detail.token.id})}" method="post">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-arrow-clockwise me-2"></i>Refresh Token
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer th:replace="~{fragments/footer :: page_footer}"></footer>
+    <div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>

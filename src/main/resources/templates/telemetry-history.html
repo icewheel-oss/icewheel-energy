@@ -1,0 +1,220 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='Telemetry History')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='products')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+
+    <!-- Case: Tesla account is NOT connected -->
+    <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+        <i class="bi bi-graph-up display-3 text-primary"></i>
+        <h1 class="display-5 fw-bold mt-3">View Historical Data</h1>
+        <p class="col-lg-8 mx-auto fs-5 text-muted">
+            Connect your Tesla account to see detailed historical telemetry data for your energy system.
+        </p>
+        <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plug-fill me-2"></i>
+            Securely Connect to Tesla
+        </a>
+    </div>
+
+    <!-- Case: Site info could not be loaded -->
+    <div th:if="${teslaConnected and siteInfo == null}" class="text-center p-5 bg-body-tertiary rounded-3">
+        <i class="bi bi-exclamation-triangle-fill display-3 text-warning"></i>
+        <h2 class="h4 mt-3">Could Not Load Site Information</h2>
+        <p class="col-lg-8 mx-auto fs-5 text-muted">
+            We were unable to retrieve the details for this site. Please try again later or check your connection.
+        </p>
+        <a th:href="@{/products}" class="btn btn-primary mt-3">
+            <i class="bi bi-arrow-left-circle-fill me-2"></i>Back to Products
+        </a>
+    </div>
+
+    <!-- Case: Site info is available -->
+    <div th:if="${teslaConnected and siteInfo != null}">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-6" th:text="${siteInfo.siteName} + ' Telemetry'">Site Telemetry</h1>
+                <p class="text-muted mb-0">Detailed historical energy data.</p>
+            </div>
+            <a th:href="@{/site-details/{siteId}(siteId=${siteId})}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Site Details
+            </a>
+        </div>
+
+        <!-- Filter Form -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form th:action="@{/sites/{siteId}/telemetry(siteId=${siteId})}" method="get"
+                      class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label for="kind" class="form-label">Data Kind</label>
+                        <select id="kind" name="kind" class="form-select">
+                            <option value="charge" th:selected="${kind == 'charge'}">Charge</option>
+                            <option value="energy" th:selected="${kind == 'energy'}">Energy</option>
+                            <option value="backup" th:selected="${kind == 'backup'}">Backup</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label for="startDate" class="form-label">Start Date</label>
+                        <input type="date" id="startDate" name="startDate" class="form-control"
+                               th:value="${startDate != null ? #temporals.format(startDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}">
+                    </div>
+                    <div class="col-md-3">
+                        <label for="endDate" class="form-label">End Date</label>
+                        <input type="date" id="endDate" name="endDate" class="form-control"
+                               th:value="${endDate != null ? #temporals.format(endDate, 'yyyy-MM-dd') : #temporals.format(#temporals.createNow(), 'yyyy-MM-dd')}">
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel-fill me-2"></i>Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- This block will only be rendered after the form is submitted and history data is available -->
+        <div th:if="${history != null}">
+            <!-- Chart -->
+            <div class="card shadow-sm mb-4" th:if="${!#lists.isEmpty(history.timeSeries)}">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-bar-chart-line-fill me-2"></i>Energy Flow
+                    Chart</h5></div>
+                <div class="card-body" style="height: 400px;">
+                    <canvas id="telemetryChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Data Table -->
+            <div class="card shadow-sm">
+                <div class="card-header"><h5 class="mb-0"><i class="bi bi-table me-2"></i>Time Series Data</h5></div>
+                <div class="card-body" th:if="${!#lists.isEmpty(history.timeSeries)}">
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover small">
+                            <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Grid Import (kWh)</th>
+                                <th>Solar Export (kWh)</th>
+                                <th>Battery Charge (kWh)</th>
+                                <th>Battery Discharge (kWh)</th>
+                                <th>Home Usage (kWh)</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <tr th:each="ts : ${history.timeSeries}">
+                                <td th:text="${dateTimeUtil.formatOffsetDateTime(ts.timestamp, siteInfo.installationTimeZone)}"></td>
+                                <td th:text="${#numbers.formatDecimal(ts.gridEnergyImported / 1000, 1, 3)}"></td>
+                                <td th:text="${#numbers.formatDecimal(ts.solarEnergyExported / 1000, 1, 3)}"></td>
+                                <td th:text="${#numbers.formatDecimal((ts.batteryEnergyImportedFromGrid + ts.batteryEnergyImportedFromSolar) / 1000, 1, 3)}"></td>
+                                <td th:text="${#numbers.formatDecimal(ts.batteryEnergyExported / 1000, 1, 3)}"></td>
+                                <td th:text="${#numbers.formatDecimal((ts.consumerEnergyImportedFromGrid + ts.consumerEnergyImportedFromSolar + ts.consumerEnergyImportedFromBattery) / 1000, 1, 3)}"></td>
+                            </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="card-body text-center text-muted" th:if="${#lists.isEmpty(history.timeSeries)}">
+                    <p class="mb-0">No telemetry data found for the selected period.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const historyData = /*[[${history}]]*/ null;
+    const timezone = /*[[${siteInfo?.installationTimeZone}]]*/ 'UTC';
+
+    if (historyData && historyData.timeSeries && historyData.timeSeries.length > 0) {
+        const ctx = document.getElementById('telemetryChart').getContext('2d');
+
+        const labels = historyData.timeSeries.map(ts => ts.timestamp);
+        const gridImportData = historyData.timeSeries.map(ts => ts.gridEnergyImported / 1000);
+        const homeUsageData = historyData.timeSeries.map(ts => (ts.consumerEnergyImportedFromGrid + ts.consumerEnergyImportedFromSolar + ts.consumerEnergyImportedFromBattery) / 1000);
+        const batteryChargeData = historyData.timeSeries.map(ts => (ts.batteryEnergyImportedFromGrid + ts.batteryEnergyImportedFromSolar) / 1000);
+        const batteryDischargeData = historyData.timeSeries.map(ts => ts.batteryEnergyExported / 1000);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Grid Import (kWh)',
+                        data: gridImportData,
+                        backgroundColor: 'rgba(217, 83, 79, 0.6)', // Red
+                    },
+                    {
+                        label: 'Home Usage (kWh)',
+                        data: homeUsageData,
+                        backgroundColor: 'rgba(91, 192, 222, 0.6)', // Blue
+                    },
+                    {
+                        label: 'Battery Charge (kWh)',
+                        data: batteryChargeData,
+                        backgroundColor: 'rgba(92, 184, 92, 0.6)', // Green
+                    },
+                    {
+                        label: 'Battery Discharge (kWh)',
+                        data: batteryDischargeData,
+                        backgroundColor: 'rgba(240, 173, 78, 0.6)', // Orange
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'hour',
+                            tooltipFormat: 'PPpp',
+                            displayFormats: {hour: 'MMM d, h a'}
+                        },
+                        stacked: true,
+                    },
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        title: {display: true, text: 'Energy (kWh)'}
+                    }
+                },
+                plugins: {
+                    tooltip: {mode: 'index', intersect: false}
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    /*]]>*/
+</script>
+</body>
+</html>

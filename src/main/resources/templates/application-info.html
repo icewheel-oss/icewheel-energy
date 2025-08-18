@@ -1,0 +1,145 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='Application Information')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='developer')}"></nav>
+
+    <main class="container my-5 flex-grow-1">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="display-6">Application Information</h1>
+            <a th:href="@{/token-details}" class="btn btn-outline-secondary">
+                <i class="bi bi-key-fill me-2"></i>View User API Tokens
+            </a>
+        </div>
+
+        <!-- Flash Messages for feedback -->
+        <div th:if="${successMessage}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle-fill me-2"></i>
+            <span th:text="${successMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${errorMessage}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+            <span th:text="${errorMessage}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header d-flex align-items-center">
+                <i class="bi bi-shield-lock-fill fs-4 me-3 text-primary"></i>
+                <h5 class="mb-0">Application Cryptographic Key</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    This application uses a public/private key pair to securely communicate with the Tesla Fleet API.
+                    The public key is used by Tesla to verify this application's domain. The private key is stored securely
+                    on the server and is used to sign requests.
+                </p>
+
+                <div class="alert alert-danger d-flex align-items-center" role="alert">
+                    <i class="bi bi-exclamation-octagon-fill me-2"></i>
+                    <div>
+                        <strong>Security Warning:</strong> The private key is a critical secret and must <strong>never</strong> be shared or exposed.
+                    </div>
+                </div>
+
+                <h6 class="mt-4">Public Key</h6>
+                <p class="text-muted small">
+                    This is the public key that should be registered with Tesla. It is also available at the
+                    <a th:href="@{/.well-known/appspecific/com.tesla.3p.public-key.pem}" target="_blank" class="link-secondary">well-known URL</a>.
+                </p>
+
+                <div class="p-3 bg-body-tertiary rounded" style="min-width: 0;">
+                    <code class="text-break" style="white-space: pre-wrap;" id="publicKeyPem" th:text="${publicKeyPem}"></code>
+                </div>
+
+                <div class="d-flex gap-2 mt-3">
+                    <button class="btn btn-outline-secondary copy-btn" th:attr="data-copy-text=${publicKeyPem}">
+                        <i class="bi bi-clipboard me-2"></i>Copy Key
+                    </button>
+                    <a class="btn btn-outline-secondary" id="download-btn" href="#">
+                        <i class="bi bi-download me-2"></i>Download .pem file
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header d-flex align-items-center">
+                <i class="bi bi-person-badge-fill fs-4 me-3 text-primary"></i>
+                <h5 class="mb-0">Partner Registration</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    This action attempts to register this application's domain with all configured Tesla regional
+                    servers.
+                    This is typically done automatically once a day, but can be triggered manually here for debugging
+                    purposes.
+                    If it fails, check the application logs for detailed error information from the Tesla API.
+                </p>
+                <div class="d-flex gap-2">
+                    <form th:action="@{/developer/register-partner}" method="post">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-arrow-clockwise me-2"></i>Register Partner Domain
+                        </button>
+                    </form>
+                    <form th:action="@{/developer/validate-registration}" method="post">
+                        <button type="submit" class="btn btn-outline-secondary">
+                            <i class="bi bi-patch-check-fill me-2"></i>Validate Registration
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Validation Results -->
+                <div th:if="${validationResults}" class="mt-4">
+                    <h6>Validation Results</h6>
+                    <ul class="list-group">
+                        <li th:each="entry : ${validationResults}"
+                            class="list-group-item d-flex justify-content-between align-items-center">
+                            <span class="text-capitalize" th:text="${entry.key}"></span>
+                            <span th:if="${entry.value.startsWith('OK')}" class="badge bg-success rounded-pill">
+                                <i class="bi bi-check-circle-fill me-1"></i> <span th:text="${entry.value}"></span>
+                            </span>
+                            <span th:if="${entry.value.startsWith('MISMATCH')}" class="badge bg-danger rounded-pill">
+                                <i class="bi bi-x-octagon-fill me-1"></i> <span th:text="${entry.value}"></span>
+                            </span>
+                            <span th:if="${entry.value.startsWith('NOT FOUND')}"
+                                  class="badge bg-warning text-dark rounded-pill">
+                                <i class="bi bi-question-circle-fill me-1"></i> <span th:text="${entry.value}"></span>
+                            </span>
+                            <span th:if="${entry.value.startsWith('ERROR')}" class="badge bg-danger rounded-pill">
+                                <i class="bi bi-exclamation-triangle-fill me-1"></i> <span
+                                    th:text="${entry.value}"></span>
+                            </span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{fragments/footer :: page_footer}"></footer>
+    <div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>

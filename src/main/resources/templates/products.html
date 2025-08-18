@@ -1,0 +1,242 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='My Products')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='products')}"></nav>
+
+    <main class="container my-5 flex-grow-1">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="display-6">My Products</h1>
+        </div>
+
+        <!-- Case 1: Tesla account is NOT connected -->
+        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-stars display-3 text-primary"></i>
+            <h1 class="display-5 fw-bold mt-3">Unlock Your Home's Energy Potential</h1>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                Connect your Tesla account to automate your energy usage, maximize savings, and gain full control over your Powerwall and solar systems.
+            </p>
+            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+                <i class="bi bi-plug-fill me-2"></i>
+                Securely Connect to Tesla
+            </a>
+        </div>
+
+        <!-- Case 2: No products found -->
+        <div th:if="${teslaConnected and products.isEmpty()}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-box-fill display-3 text-muted"></i>
+            <h2 class="h4 mt-3">No Products Found</h2>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                We couldn't find any vehicles or energy products associated with your Tesla account.
+            </p>
+            <a th:href="@{/products}" class="btn btn-primary mt-3">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+            </a>
+        </div>
+
+        <!-- Case 3: Products are found -->
+        <div class="row row-cols-1 row-cols-md-2 g-4" th:if="${teslaConnected and !products.isEmpty()}">
+            <th:block th:each="product : ${products}">
+
+                <!-- Vehicle Card -->
+                <div class="col" th:if="${product.resourceType == 'vehicle'}">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0" th:text="${product.displayName}">Vehicle Name</h5>
+                            <span class="badge rounded-pill"
+                                  th:classappend="${product.state == 'online' ? 'bg-success-subtle text-success-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'}"
+                                  th:text="${product.state ?: 'Unknown'}">Online</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="text-center mb-4">
+                                <i class="bi bi-car-front-fill display-1 text-primary"></i>
+                            </div>
+
+                            <div class="mb-4" th:if="${product.percentageCharged > 0}">
+                                <div class="d-flex justify-content-between align-items-end mb-1">
+                                    <span class="text-muted">Battery Level</span>
+                                    <span class="h4 mb-0"
+                                          th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 1)} + '%'"></span>
+                                </div>
+                                <div class="progress" role="progressbar" th:aria-valuenow="${product.percentageCharged}"
+                                     aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
+                                    <div class="progress-bar"
+                                         th:style="'width: ' + ${product.percentageCharged} + '%'"
+                                         th:classappend="${product.percentageCharged > 70 ? 'bg-success' : (product.percentageCharged > 30 ? 'bg-warning' : 'bg-danger')}"></div>
+                                </div>
+                            </div>
+
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-upc-scan me-2 text-secondary"></i> VIN
+                                    </div>
+                                    <span class="fw-bold"><code th:text="${product.vin}"></code></span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0 pt-0">
+                            <button class="btn btn-outline-secondary w-100" disabled><i
+                                    class="bi bi-gear-fill me-2"></i>Vehicle controls coming soon
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Battery Card -->
+                <div class="col" th:if="${product.resourceType == 'battery'}">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0" th:text="${product.siteName}">Site Name</h5>
+                            <div>
+                                <span class="badge bg-info-subtle text-info-emphasis rounded-pill me-2"
+                                      th:if="${product.batteryCount > 1}"
+                                      th:text="${product.batteryCount} + ' Batteries'"></span>
+                                <span class="badge bg-primary-subtle text-primary-emphasis rounded-pill">Powerwall</span>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <div class="d-flex justify-content-between align-items-end mb-1">
+                                    <span class="text-muted">Battery Level</span>
+                                    <span class="h4 mb-0" th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 1)} + '%'"></span>
+                                </div>
+                                <div class="progress" role="progressbar" aria-label="Battery level" th:aria-valuenow="${product.percentageCharged}" aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
+                                    <div class="progress-bar"
+                                         th:style="'width: ' + ${product.percentageCharged} + '%'"
+                                         th:classappend="|${product.percentageCharged > 70 ? 'bg-success' : (product.percentageCharged > 30 ? 'bg-warning' : 'bg-danger')} ${product.batteryPower < -50 or product.batteryPower > 50 ? 'progress-bar-striped progress-bar-animated' : ''}|"></div>
+                                </div>
+                            </div>
+
+                            <!--
+                                Power Flow Status Interpretation:
+                                - Positive batteryPower (> 0): The battery is discharging (supplying power).
+                                - Negative batteryPower (< 0): The battery is charging (storing power).
+                            -->
+                            <div class="d-flex justify-content-between align-items-center p-3 mb-3 rounded-3 bg-body-tertiary">
+                                <div th:with="power=${product.batteryPower / 1000}">
+                                    <!-- Discharging -->
+                                    <div th:if="${power > 0.05}" class="d-flex align-items-center text-primary">
+                                        <i class="bi bi-arrow-up-circle-fill fs-2 me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Discharging</div>
+                                            <div class="small text-muted">Supplying power to home</div>
+                                        </div>
+                                    </div>
+                                    <!-- Charging -->
+                                    <div th:if="${power < -0.05}" class="d-flex align-items-center text-success">
+                                        <i class="bi bi-arrow-down-circle-fill fs-2 me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Charging</div>
+                                            <div class="small text-muted">Storing energy</div>
+                                        </div>
+                                    </div>
+                                    <!-- Idle -->
+                                    <div th:if="${power >= -0.05 and power <= 0.05}" class="d-flex align-items-center text-secondary">
+                                        <i class="bi bi-pause-circle-fill fs-2 me-3"></i>
+                                        <div>
+                                            <div class="fw-bold">Idle</div>
+                                            <div class="small text-muted">Battery is standing by</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="fw-bold fs-5"
+                                      th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(product.batteryPower / 1000), 1, 2)} + ' kW'"></span>
+                            </div>
+
+                            <ul class="list-group list-group-flush">
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-lightning-fill me-2 text-secondary"></i>
+                                        Energy Left
+                                    </div>
+                                    <span class="fw-bold"
+                                          th:text="${#numbers.formatDecimal(product.energyLeft / 1000, 1, 1)} + ' kWh'"></span>
+                                </li>
+                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div class="d-flex align-items-center">
+                                        <i class="bi bi-battery-full me-2 text-secondary"></i>
+                                        Total Capacity
+                                    </div>
+                                    <span class="fw-bold"
+                                          th:text="${#numbers.formatDecimal(product.totalPackEnergy / 1000, 1, 1)} + ' kWh'"></span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0 pt-0">
+                            <a th:href="@{/sites/{siteId}(siteId=${product.energySiteId})}"
+                               class="btn btn-primary w-100"><i class="bi bi-sliders me-2"></i>View Site Details</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Solar Panel Card -->
+                <div class="col" th:if="${product.resourceType == 'solar'}">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0" th:text="${product.siteName}">Site Name</h5>
+                            <span class="badge bg-warning-subtle text-warning-emphasis rounded-pill">Solar</span>
+                        </div>
+                        <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
+                            <i class="bi bi-sun-fill display-1 text-warning"></i>
+                            <p class="h5 mt-3">Generating Power</p>
+                            <p class="text-muted"
+                               th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(product.solarPower / 1000), 1, 2)} + ' kW'">
+                                0.00 kW</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0 pt-0">
+                            <a th:href="@{/sites/{siteId}(siteId=${product.energySiteId})}"
+                               class="btn btn-outline-secondary w-100"><i
+                                    class="bi bi-sliders me-2"></i>View Site Details</a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Wall Connector Card -->
+                <div class="col" th:if="${product.resourceType == 'wall_connector'}">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0" th:text="${product.siteName}">Site Name</h5>
+                            <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">Wall Connector</span>
+                        </div>
+                        <div class="card-body d-flex flex-column justify-content-center align-items-center text-center">
+                            <i class="bi bi-ev-station-fill display-1 text-primary"></i>
+                            <p class="h5 mt-3">Ready for Charging</p>
+                            <p class="text-muted">This Wall Connector is linked to your account.</p>
+                        </div>
+                        <div class="card-footer bg-transparent border-top-0 pt-0">
+                            <a th:href="@{/sites/{siteId}(siteId=${product.energySiteId})}"
+                               class="btn btn-outline-secondary w-100"><i class="bi bi-sliders me-2"></i>View Site
+                                Details</a>
+                        </div>
+                    </div>
+                </div>
+            </th:block>
+        </div>
+    </main>
+
+    <footer th:replace="~{fragments/footer :: page_footer}"></footer>
+    <div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>

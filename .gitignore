@@ -1,0 +1,35 @@
+# Java / Maven / Spring Boot
+/target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Environment / Secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+/data/
+
+# Build artifacts
+/*.jar
+/*.war
+/*.zip
+
+# Misc
+node_modules/

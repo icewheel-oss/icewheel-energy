@@ -1,0 +1,484 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <th:block th:replace="~{fragments/header :: head(pageTitle='Site Details')}"></th:block>
+    <!-- Why: Page-specific stylesheets should be in the <head> for proper rendering. -->
+    <link rel="stylesheet" th:href="@{/webjars/highlightjs/11.11.1/styles/atom-one-dark.min.css}">
+</head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+    <nav th:replace="~{fragments/header :: navbar(activePage='products')}"></nav>
+
+    <main class="container my-5 flex-grow-1">
+
+        <!-- Reusable fragment for displaying boolean values as badges -->
+        <th:block th:fragment="bool_badge(value, trueText, falseText)">
+            <!-- Why: Using a neutral gray for the "false" state is less alarming than red. It correctly represents an "off" or "inactive" state rather than an error. -->
+            <span th:if="${value}" class="badge bg-success-subtle text-success-emphasis rounded-pill"
+                  th:text="${trueText ?: 'Enabled'}"></span>
+            <span th:unless="${value}" class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+                  th:text="${falseText ?: 'Disabled'}"></span>
+        </th:block>
+
+        <!-- Case 1: Tesla account is NOT connected -->
+        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-stars display-3 text-primary"></i>
+            <h1 class="display-5 fw-bold mt-3">View Your Site Details</h1>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                Connect your Tesla account to see in-depth information about your energy system components, settings,
+                and capabilities.
+            </p>
+            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+                <i class="bi bi-plug-fill me-2"></i>
+                Securely Connect to Tesla
+            </a>
+        </div>
+
+        <!-- Case 2: Site info could not be loaded -->
+        <div th:if="${teslaConnected and siteInfo == null}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-exclamation-triangle-fill display-3 text-warning"></i>
+            <h2 class="h4 mt-3">Could Not Load Site Information</h2>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                We were unable to retrieve the details for this site. Please try again later or check your connection.
+            </p>
+            <a th:href="@{/products}" class="btn btn-primary mt-3">
+                <i class="bi bi-arrow-left-circle-fill me-2"></i>Back to Products
+            </a>
+        </div>
+
+        <!-- Case 3: Site info is available -->
+        <div th:if="${teslaConnected and siteInfo != null}">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="display-6" th:text="${siteInfo.siteName}">Site Name</h1>
+                    <p class="text-muted mb-0" th:text="'ID: ' + ${siteInfo.id}"></p>
+                </div>
+                <a th:href="@{/products}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left me-2"></i>Back to Products
+                </a>
+            </div>
+
+            <div class="row g-4">
+                <!-- Left Column -->
+                <div class="col-lg-8">
+                    <div class="card shadow-sm">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="bi bi-motherboard-fill me-2"></i>System Components</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="componentsAccordion">
+
+                                <!-- Hardware Details -->
+                                <div class="accordion-item"
+                                     th:if="${siteInfo.components?.gateways != null or siteInfo.components?.batteries != null}">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                                                data-bs-target="#collapseHardware">
+                                            Hardware Details
+                                        </button>
+                                    </h2>
+                                    <div id="collapseHardware" class="accordion-collapse collapse show"
+                                         data-bs-parent="#componentsAccordion">
+                                        <div class="accordion-body">
+                                            <!-- Gateways -->
+                                            <h6 class="text-muted mb-3">Gateways</h6>
+                                            <div th:if="${!#lists.isEmpty(siteInfo.components.gateways)}">
+                                                <div th:each="gw : ${siteInfo.components.gateways}"
+                                                     class="card bg-body-tertiary mb-3">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div>
+                                                                <h6 class="card-title mb-1" th:text="${gw.partName}">
+                                                                    Powerwall 3</h6>
+                                                                <p class="card-subtitle mb-2 text-muted"
+                                                                   th:text="${gw.serialNumber}"></p>
+                                                            </div>
+                                                            <th:block
+                                                                    th:replace="~{:: bool_badge(${gw.isActive}, 'Active', 'Inactive')}"/>
+                                                        </div>
+                                                        <dl class="row small mt-2 mb-0">
+                                                            <dt class="col-sm-4" th:if="${gw.deviceId != null}">Device
+                                                                ID
+                                                            </dt>
+                                                            <dd class="col-sm-8" th:if="${gw.deviceId != null}"><code
+                                                                    th:text="${gw.deviceId}"></code></dd>
+
+                                                            <dt class="col-sm-4" th:if="${gw.din != null}">DIN</dt>
+                                                            <dd class="col-sm-8" th:if="${gw.din != null}"><code
+                                                                    th:text="${gw.din}"></code></dd>
+
+                                                            <dt class="col-sm-4">Part Number</dt>
+                                                            <dd class="col-sm-8"><code
+                                                                    th:text="${gw.partNumber}"></code></dd>
+
+                                                            <dt class="col-sm-4" th:if="${gw.partType != 0}">Part Type
+                                                            </dt>
+                                                            <dd class="col-sm-8" th:if="${gw.partType != 0}"
+                                                                th:text="${gw.partType}"></dd>
+
+                                                            <dt class="col-sm-4">Firmware</dt>
+                                                            <dd class="col-sm-8" th:text="${gw.firmwareVersion}"></dd>
+
+                                                            <dt class="col-sm-4" th:if="${gw.updatedDatetime != null}">
+                                                                Last Update
+                                                            </dt>
+                                                            <dd class="col-sm-8" th:if="${gw.updatedDatetime != null}"
+                                                                th:text="${dateTimeUtil.formatInstant(gw.updatedDatetime, siteInfo.installationTimeZone)}"></dd>
+                                                        </dl>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div th:if="${siteInfo.components.gateways == null or #lists.isEmpty(siteInfo.components.gateways)}"
+                                                 class="text-muted small">No gateway devices found.
+                                            </div>
+
+                                            <!-- Batteries -->
+                                            <h6 class="text-muted mt-4 mb-3">Batteries</h6>
+                                            <div th:if="${!#lists.isEmpty(siteInfo.components.batteries)}">
+                                                <div th:each="b : ${siteInfo.components.batteries}"
+                                                     class="card bg-body-tertiary mb-3">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between align-items-start">
+                                                            <div>
+                                                                <h6 class="card-title mb-1"
+                                                                    th:text="${b.partName} ?: 'Battery'">Unknown</h6>
+                                                                <p class="card-subtitle mb-2 text-muted"
+                                                                   th:text="${b.serialNumber}"></p>
+                                                            </div>
+                                                            <th:block
+                                                                    th:replace="~{:: bool_badge(${b.isActive}, 'Active', 'Inactive')}"/>
+                                                        </div>
+                                                        <dl class="row small mt-2 mb-0">
+                                                            <dt class="col-sm-4" th:if="${b.deviceId != null}">Device
+                                                                ID
+                                                            </dt>
+                                                            <dd class="col-sm-8" th:if="${b.deviceId != null}"><code
+                                                                    th:text="${b.deviceId}"></code></dd>
+
+                                                            <dt class="col-sm-4" th:if="${b.din != null}">DIN</dt>
+                                                            <dd class="col-sm-8" th:if="${b.din != null}"><code
+                                                                    th:text="${b.din}"></code></dd>
+
+                                                            <dt class="col-sm-4">Part Number</dt>
+                                                            <dd class="col-sm-8"><code th:text="${b.partNumber}"></code>
+                                                            </dd>
+
+                                                            <dt class="col-sm-4">Energy</dt>
+                                                            <dd class="col-sm-8"
+                                                                th:text="${#numbers.formatDecimal(b.nameplateEnergy / 1000, 1, 1)} + ' kWh'"></dd>
+
+                                                            <dt class="col-sm-4">Max Charge</dt>
+                                                            <dd class="col-sm-8"
+                                                                th:text="${#numbers.formatDecimal(b.nameplateMaxChargePower / 1000, 1, 1)} + ' kW'"></dd>
+
+                                                            <dt class="col-sm-4">Max Discharge</dt>
+                                                            <dd class="col-sm-8"
+                                                                th:text="${#numbers.formatDecimal(b.nameplateMaxDischargePower / 1000, 1, 1)} + ' kW'"></dd>
+                                                        </dl>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div th:if="${siteInfo.components.batteries == null or #lists.isEmpty(siteInfo.components.batteries)}"
+                                                 class="text-muted small">No battery devices found.
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Solar Details -->
+                                <div class="accordion-item" th:if="${siteInfo.components?.solar}">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#collapseSolar">
+                                            Solar Details
+                                        </button>
+                                    </h2>
+                                    <div id="collapseSolar" class="accordion-collapse collapse"
+                                         data-bs-parent="#componentsAccordion">
+                                        <div class="accordion-body">
+                                            <dl class="row small mb-0">
+                                                <dt class="col-sm-4">Status</dt>
+                                                <dd class="col-sm-8">
+                                                    <!-- Why: This provides real-time feedback on solar production, which is more useful than a static 'enabled' flag. -->
+                                                    <th:block
+                                                            th:if="${liveStatus != null and liveStatus.solarPower > 0}">
+                                                        <span class="badge bg-success-subtle text-success-emphasis rounded-pill">
+                                                            <i class="bi bi-sun-fill me-1"></i>
+                                                            Generating <span
+                                                                th:text="${#numbers.formatDecimal(liveStatus.solarPower / 1000, 1, 2)} + ' kW'"></span>
+                                                        </span>
+                                                    </th:block>
+                                                    <th:block
+                                                            th:if="${liveStatus == null or liveStatus.solarPower <= 0}">
+                                                        <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">
+                                                            <i class="bi bi-moon-stars-fill me-1"></i>Not Generating
+                                                        </span>
+                                                    </th:block>
+                                                </dd>
+
+                                                <dt class="col-sm-4">Solar Type</dt>
+                                                <dd class="col-sm-8 text-capitalize"
+                                                    th:text="${siteInfo.components.solarType?.replace('_', ' ')}"></dd>
+
+                                                <dt class="col-sm-4">Solar Value View</dt>
+                                                <dd class="col-sm-8">
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.solarValueEnabled}, null, null)}"/>
+                                                </dd>
+
+                                                <dt class="col-sm-4">Battery Offset View</dt>
+                                                <dd class="col-sm-8">
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.batterySolarOffsetViewEnabled}, null, null)}"/>
+                                                </dd>
+                                            </dl>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- System Capabilities -->
+                                <div class="accordion-item" th:if="${siteInfo.components != null}">
+                                    <h2 class="accordion-header">
+                                        <button class="accordion-button collapsed" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#collapseCapabilities">
+                                            System Capabilities
+                                        </button>
+                                    </h2>
+                                    <div id="collapseCapabilities" class="accordion-collapse collapse"
+                                         data-bs-parent="#componentsAccordion">
+                                        <div class="accordion-body">
+                                            <ul class="list-group list-group-flush">
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    Battery
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.battery}, null, null)}"/>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    Grid
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.grid}, null, null)}"/>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    Backup
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.backup}, null, null)}"/>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    TOU Capable
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.touCapable}, null, null)}"/>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    Storm Mode Capable
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.stormModeCapable}, null, null)}"/>
+                                                </li>
+                                                <li class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                                    Grid Services
+                                                    <th:block
+                                                            th:replace="~{:: bool_badge(${siteInfo.components.gridServicesEnabled}, null, null)}"/>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Raw API Responses -->
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header">
+                                        <!-- Why: Correcting the data-bs-target to match the div's ID fixes the bug where this section would not expand. -->
+                                        <button class="accordion-button collapsed" type="button"
+                                                data-bs-toggle="collapse" data-bs-target="#collapseApiResponses">
+                                            <i class="bi bi-file-code-fill me-2"></i>Raw API Responses
+                                        </button>
+                                    </h2>
+                                    <div id="collapseApiResponses" class="accordion-collapse collapse"
+                                         data-bs-parent="#componentsAccordion">
+                                        <div class="accordion-body">
+                                            <p class="small text-muted">This section shows the raw JSON data received
+                                                from the Tesla API for debugging and informational purposes.</p>
+
+                                            <div class="accordion" id="rawResponsesAccordion">
+                                                <!-- Products Raw Response -->
+                                                <div class="accordion-item" th:if="${productsResponse != null}">
+                                                    <h2 class="accordion-header">
+                                                        <button class="accordion-button" type="button"
+                                                                data-bs-toggle="collapse"
+                                                                data-bs-target="#collapseProductsRaw">
+                                                            Products Response
+                                                        </button>
+                                                    </h2>
+                                                    <div id="collapseProductsRaw"
+                                                         class="accordion-collapse collapse show"
+                                                         data-bs-parent="#rawResponsesAccordion">
+                                                        <div class="accordion-body position-relative">
+                                                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 me-3 mt-2 copy-btn">
+                                                                <i class="bi bi-clipboard"></i> Copy
+                                                            </button>
+                                                            <!-- Why: Adding the 'language-json' class tells highlight.js which syntax rules to apply. -->
+                                                            <pre class="p-3 rounded"><code class="language-json"><!--
+                                                                --><th:block
+                                                                    th:text="${@jsonUtil.toJson(productsResponse)}"></th:block><!--
+                                                            --></code></pre>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="accordion-item" th:if="${siteInfo != null}">
+                                                    <h2 class="accordion-header">
+                                                        <button class="accordion-button collapsed" type="button"
+                                                                data-bs-toggle="collapse"
+                                                                data-bs-target="#collapseSiteInfoRaw">
+                                                            Site Info Response
+                                                        </button>
+                                                    </h2>
+                                                    <div id="collapseSiteInfoRaw" class="accordion-collapse collapse"
+                                                         data-bs-parent="#rawResponsesAccordion">
+                                                        <div class="accordion-body position-relative">
+                                                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 me-3 mt-2 copy-btn">
+                                                                <i class="bi bi-clipboard"></i> Copy
+                                                            </button>
+                                                            <pre class="p-3 rounded"><code class="language-json"><!--
+                                                                --><th:block
+                                                                    th:text="${@jsonUtil.toJson(siteInfo)}"></th:block><!--
+                                                            --></code></pre>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <!-- Live Status Raw Response -->
+                                                <div class="accordion-item" th:if="${liveStatus != null}">
+                                                    <h2 class="accordion-header">
+                                                        <button class="accordion-button collapsed" type="button"
+                                                                data-bs-toggle="collapse"
+                                                                data-bs-target="#collapseLiveStatusRaw">
+                                                            Live Status Response
+                                                        </button>
+                                                    </h2>
+                                                    <div id="collapseLiveStatusRaw" class="accordion-collapse collapse"
+                                                         data-bs-parent="#rawResponsesAccordion">
+                                                        <div class="accordion-body position-relative">
+                                                            <button class="btn btn-sm btn-outline-secondary position-absolute top-0 end-0 me-3 mt-2 copy-btn">
+                                                                <i class="bi bi-clipboard"></i> Copy
+                                                            </button>
+                                                            <pre class="p-3 rounded"><code class="language-json"><!--
+                                                                --><th:block
+                                                                    th:text="${@jsonUtil.toJson(liveStatus)}"></th:block><!--
+                                                            --></code></pre>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="col-lg-4">
+                    <!-- General Info -->
+                    <div class="card shadow-sm mb-4">
+                        <div class="card-header"><h5 class="mb-0"><i class="bi bi-info-circle-fill me-2"></i>General
+                        </h5></div>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">Utility <span
+                                    class="fw-bold" th:text="${siteInfo.utility}"></span></li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">Firmware <span
+                                    class="fw-bold" th:text="${siteInfo.version}"></span></li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">Installed
+                                <span class="fw-bold"
+                                      th:text="${dateTimeUtil.formatInstant(siteInfo.installationDate, siteInfo.installationTimeZone)}"></span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">Backup Reserve
+                                <span class="fw-bold" th:text="${siteInfo.backupReservePercent} + '%'"></span></li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">Operating Mode
+                                <span class="fw-bold text-capitalize" th:text="${siteInfo.defaultRealMode}"></span></li>
+                        </ul>
+                    </div>
+
+                    <!-- User Settings -->
+                    <div class="card shadow-sm" th:if="${siteInfo.userSettings != null}">
+                        <div class="card-header"><h5 class="mb-0"><i class="bi bi-person-gear me-2"></i>User Settings
+                        </h5></div>
+                        <ul class="list-group list-group-flush">
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Storm Mode
+                                <th:block
+                                        th:replace="~{:: bool_badge(${siteInfo.userSettings.stormModeEnabled}, null, null)}"/>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Off-Grid Vehicle Charging
+                                <th:block
+                                        th:replace="~{:: bool_badge(${siteInfo.userSettings.offGridVehicleChargingEnabled}, null, null)}"/>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                VPP Tour
+                                <th:block
+                                        th:replace="~{:: bool_badge(${siteInfo.userSettings.vppTourEnabled}, null, null)}"/>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Onboarding Complete
+                                <th:block
+                                        th:replace="~{:: bool_badge(${siteInfo.userSettings.powerwallOnboardingSettingsSet}, 'Yes', 'No')}"/>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Data History Card -->
+                    <div class="card shadow-sm mt-4">
+                        <div class="card-header"><h5 class="mb-0"><i class="bi bi-clock-history me-2"></i>Data History
+                        </h5></div>
+                        <div class="card-body">
+                            <p class="small text-muted">View detailed historical data for your energy site, such as
+                                charge history and energy flow.</p>
+                            <div class="d-grid gap-2">
+                                <a th:href="@{/sites/{siteId}/telemetry(siteId=${siteInfo.id})}"
+                                   class="btn btn-primary">
+                                    <i class="bi bi-graph-up me-2"></i>View Telemetry History
+                                </a>
+                                <a th:href="@{/sites/{siteId}/energy-history(siteId=${siteInfo.id})}"
+                                   class="btn btn-outline-primary">
+                                    <i class="bi bi-calendar-event-fill me-2"></i>View Energy History
+                                </a>
+                                <a th:href="@{/sites/{siteId}/charge-history(siteId=${siteInfo.id})}"
+                                   class="btn btn-outline-primary">
+                                    <i class="bi bi-ev-station-fill me-2"></i>View Charge History
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{fragments/footer :: page_footer}"></footer>
+    <div th:replace="~{fragments/footer :: scripts}"></div>
+    <!-- Why: The WebJar version must match the version in pom.xml to avoid 404 errors. -->
+    <script th:src="@{/webjars/highlightjs/11.11.1/highlight.min.js}"></script>
+    <!-- Page-specific JavaScript -->
+    <script th:src="@{/js/site-details.js}"></script>
+</body>
+</html>

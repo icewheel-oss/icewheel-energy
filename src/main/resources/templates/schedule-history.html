@@ -1,0 +1,92 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-bs-theme="dark">
+
+<head>
+    <th:block th:replace="~{fragments/header :: head(pageTitle='Schedule History')}"></th:block>
+</head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='schedules')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="display-6">Schedule History</h1>
+        <a th:href="@{/schedules}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Schedules
+        </a>
+    </div>
+
+    <!-- Empty state -->
+    <div th:if="${historyPage.empty}" class="text-center p-5 bg-body-tertiary rounded-3">
+        <i class="bi bi-clock-history display-3 text-secondary"></i>
+        <h2 class="h4 mt-3">No History Found</h2>
+        <p class="col-lg-8 mx-auto fs-5 text-muted">
+            No actions or executions have been recorded for your schedules yet.
+        </p>
+    </div>
+
+    <!-- History Timeline -->
+    <div th:unless="${historyPage.empty}" class="list-group">
+        <div th:each="event, iterStat : ${historyPage.content}"
+             class="list-group-item list-group-item-action flex-column align-items-start"
+             th:classappend="${iterStat.odd} ? 'bg-body-tertiary' : ''">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <h5 class="mb-1">
+                    <i class="bi me-2" th:classappend="${event.eventType == 'CREATED' ? 'bi-plus-circle-fill text-success' : event.eventType == 'UPDATED' ? 'bi-pencil-fill text-info' : 'bi-trash-fill text-danger'}"></i>
+                    <span th:text="${event.scheduleName}">Schedule Name</span>
+                </h5>
+                <small class="text-muted" th:text="${#temporals.format(event.timestamp, 'MMM dd, yyyy HH:mm:ss')}"></small>
+            </div>
+            <div class="ps-4 pt-2">
+                <!-- Display a detailed list of changes for UPDATE events -->
+                <div th:if="${event.details instanceof T(java.util.Map) and event.details.containsKey('changes')}">
+                    <ul class="list-unstyled mb-0 small text-muted">
+                        <li th:each="change : ${event.details.get('changes')}" class="mb-1">
+                            <span class="fw-bold" th:text="${change.get('field')}"></span>
+                            was changed from
+                            <code class="text-body-secondary" th:text="${change.get('from')}"></code> to <code class="text-body-secondary" th:text="${change.get('to')}"></code>.
+                        </li>
+                    </ul>
+                </div>
+                <!-- Display status change details -->
+                <div th:if="${event.details instanceof T(java.util.Map) and event.details.containsKey('change')}">
+                    <p class="mb-1 text-muted" th:text="|Status changed to ${#strings.capitalize(event.details.get('new_value'))}.|"></p>
+                </div>
+                <!-- Display simple info for other events like CREATED or DELETED -->
+                <div th:if="${event.details instanceof T(java.util.Map) and event.details.containsKey('info')}">
+                    <p class="mb-1 text-muted" th:text="${event.details.get('info')}"></p>
+                </div>
+            </div>
+            <small class="text-muted mt-2 d-block">
+                <span class="badge" th:classappend="${event.eventType == 'CREATED' ? 'bg-primary-subtle text-primary-emphasis' : event.eventType == 'UPDATED' ? 'bg-info-subtle text-info-emphasis' : event.eventType == 'DELETED' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'}" th:text="${event.eventType}"></span>
+            </small>
+        </div>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div th:replace="~{fragments/pagination :: pagination(page=${historyPage}, url='/schedules/history')}"></div>
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>

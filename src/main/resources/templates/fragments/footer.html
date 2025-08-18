@@ -1,0 +1,67 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+ <html lang="en" xmlns:th="http://www.thymeleaf.org">
+ <body>
+
+     <!--
+       - A professional, clean footer fragment.
+       - It includes a copyright notice and is designed to be theme-aware.
+       - The 'mt-auto' class helps it stick to the bottom on pages with little content.
+       -->
+     <footer class="footer mt-auto pt-4 pb-3" th:fragment="page_footer">
+         <div class="container">
+             <hr>
+             <div class="text-center text-muted">
+                 <small>Copyright &copy; 2025 Icewheel LLC. All Rights Reserved.</small>
+             </div>
+         </div>
+     </footer>
+
+     <!-- Centralized script includes for all pages. -->
+     <div th:fragment="scripts">
+         <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
+         <script th:src="@{/js/theme-switcher.js}"></script>
+         <script th:src="@{/js/app.js}"></script>
+         <script th:src="@{/js/energy-flow.js}"></script>
+
+         <!-- Disconnect Confirmation Modal -->
+         <div th:if="${#authentication.principal != null}" class="modal fade" id="disconnectModal" tabindex="-1" aria-labelledby="disconnectModalLabel" aria-hidden="true">
+             <div class="modal-dialog modal-dialog-centered">
+                 <div class="modal-content">
+                     <div class="modal-header bg-danger text-white">
+                         <h5 class="modal-title" id="disconnectModalLabel"><i class="bi bi-exclamation-triangle-fill me-2"></i>Confirm Disconnection</h5>
+                         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                     </div>
+                     <div class="modal-body">
+                         <p>Are you sure you want to disconnect your Tesla account?</p>
+                         <p class="text-muted small">This will revoke our application's access to your Tesla data. All your automation schedules will stop working immediately. You can reconnect your account at any time from the dashboard.</p>
+                     </div>
+                     <div class="modal-footer">
+                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                         <a href="/api/tesla/fleet/auth/disconnect" class="btn btn-danger">Yes, Disconnect</a>
+                     </div>
+                 </div>
+             </div>
+         </div>
+     </div>
+
+ </body>
+ </html>

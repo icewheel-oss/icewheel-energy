@@ -1,0 +1,76 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security" data-bs-theme="auto">
+
+<head th:replace="~{fragments/header :: head(pageTitle=${pageTitle})}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+
+<div sec:authorize="isAuthenticated()" th:replace="~{fragments/header :: navbar(activePage=${activePage})}"></div>
+
+<main class="container my-5 flex-grow-1">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <div class="card text-center shadow-sm">
+                <div class="card-body p-4 p-md-5">
+                    <!-- Dynamic content based on the error status code -->
+                    <div th:switch="${statusCode}">
+                        <div th:case="'404'">
+                            <i class="bi bi-compass-fill text-warning display-1"></i>
+                            <h1 class="card-title mt-4">Page Not Found</h1>
+                            <p class="card-text text-muted">The page you are looking for might have been removed or is temporarily unavailable.</p>
+                        </div>
+                        <div th:case="'403'">
+                            <i class="bi bi-lock-fill text-danger display-1"></i>
+                            <h1 class="card-title mt-4">Access Denied</h1>
+                            <p class="card-text text-muted">You do not have permission to view this page.</p>
+                        </div>
+                        <div th:case="*"> <!-- Default case for 500 or other errors -->
+                            <i class="bi bi-exclamation-triangle-fill text-danger display-1"></i>
+                            <h1 class="card-title mt-4">An Error Occurred</h1>
+                            <p class="card-text text-muted">Sorry, something went wrong on our end. We are working to fix it.</p>
+                        </div>
+                    </div>
+
+                    <div th:if="${param.message}" class="alert alert-danger mt-4">
+                        <span th:text="${param.message}">A general error occurred.</span>
+                    </div>
+
+                    <div th:if="${errorMessage}" class="alert alert-secondary mt-4">
+                        <strong>Error <span th:text="${statusCode}"></span>:</strong>
+                        <span th:text="${errorMessage}">A general error occurred.</span>
+                    </div>
+                    <div class="d-grid gap-2 mt-4">
+                        <a sec:authorize="isAuthenticated()" th:href="@{/user-profile}" class="btn btn-primary"><i class="bi bi-grid-1x2-fill me-2"></i>Go to Dashboard</a>
+                        <a sec:authorize="!isAuthenticated()" th:href="@{/}" class="btn btn-primary"><i class="bi bi-box-arrow-in-right me-2"></i>Go to Login Page</a>
+                        <button id="go-back-btn" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-2"></i>Go Back</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+
+</body>
+</html>

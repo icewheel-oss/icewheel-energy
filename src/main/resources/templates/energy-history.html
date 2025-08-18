@@ -1,0 +1,192 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='Energy History')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='products')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+
+    <!-- Case: Tesla account is NOT connected -->
+    <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+        <i class="bi bi-calendar-event-fill display-3 text-primary"></i>
+        <h1 class="display-5 fw-bold mt-3">View Historical Energy Data</h1>
+        <p class="col-lg-8 mx-auto fs-5 text-muted">
+            Connect your Tesla account to see aggregated historical energy data for your system.
+        </p>
+        <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plug-fill me-2"></i>
+            Securely Connect to Tesla
+        </a>
+    </div>
+
+    <!-- Case: Site info is available -->
+    <div th:if="${teslaConnected and siteInfo != null}">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h1 class="display-6" th:text="${siteInfo.siteName} + ' Energy History'">Site Energy History</h1>
+                <p class="text-muted mb-0">Aggregated historical energy data.</p>
+            </div>
+            <a th:href="@{/site-details/{siteId}(siteId=${siteId})}" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left me-2"></i>Back to Site Details
+            </a>
+        </div>
+
+        <!-- Filter Form -->
+        <div class="card shadow-sm mb-4">
+            <div class="card-body">
+                <form th:action="@{/sites/{siteId}/energy-history(siteId=${siteId})}" method="get"
+                      class="row g-3 align-items-end">
+                    <div class="col-md-10">
+                        <label for="period" class="form-label">Period</label>
+                        <select id="period" name="period" class="form-select">
+                            <option value="day" th:selected="${period == 'day'}">Day</option>
+                            <option value="week" th:selected="${period == 'week'}">Week</option>
+                            <option value="month" th:selected="${period == 'month'}">Month</option>
+                            <option value="year" th:selected="${period == 'year'}">Year</option>
+                            <option value="lifetime" th:selected="${period == 'lifetime'}">Lifetime</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100"><i class="bi bi-funnel-fill me-2"></i>Filter
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card shadow-sm mb-4" th:if="${history != null and !#lists.isEmpty(history.timeSeries)}">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-bar-chart-line-fill me-2"></i>Energy Flow Chart
+            </h5></div>
+            <div class="card-body" style="height: 400px;">
+                <canvas id="energyHistoryChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Data Table -->
+        <div class="card shadow-sm">
+            <div class="card-header"><h5 class="mb-0"><i class="bi bi-table me-2"></i>Time Series Data</h5></div>
+            <div class="card-body" th:if="${history != null and !#lists.isEmpty(history.timeSeries)}">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover small">
+                        <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Home Usage (kWh)</th>
+                            <th>Grid Export (kWh)</th>
+                            <th>Battery Charge (kWh)</th>
+                            <th>Grid Import (kWh)</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr th:each="ts : ${history.timeSeries}">
+                            <td th:text="${dateTimeUtil.formatOffsetDateTime(ts.timestamp, siteInfo.installationTimeZone)}"></td>
+                            <td th:text="${#numbers.formatDecimal((ts.consumerEnergyImportedFromGrid + ts.consumerEnergyImportedFromSolar + ts.consumerEnergyImportedFromBattery) / 1000, 1, 3)}"></td>
+                            <td th:text="${#numbers.formatDecimal(ts.solarEnergyExported / 1000, 1, 3)}"></td>
+                            <td th:text="${#numbers.formatDecimal((ts.batteryEnergyImportedFromGrid + ts.batteryEnergyImportedFromSolar) / 1000, 1, 3)}"></td>
+                            <td th:text="${#numbers.formatDecimal(ts.gridEnergyImported / 1000, 1, 3)}"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-body text-center text-muted"
+                 th:if="${history == null or #lists.isEmpty(history.timeSeries)}">
+                <p class="mb-0">No energy history data found for the selected period.</p>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    const historyData = /*[[${history}]]*/ null;
+
+    if (historyData && historyData.timeSeries && historyData.timeSeries.length > 0) {
+        const ctx = document.getElementById('energyHistoryChart').getContext('2d');
+
+        const labels = historyData.timeSeries.map(ts => ts.timestamp);
+        const homeUsageData = historyData.timeSeries.map(ts => (ts.consumerEnergyImportedFromGrid + ts.consumerEnergyImportedFromSolar + ts.consumerEnergyImportedFromBattery) / 1000);
+        const gridExportData = historyData.timeSeries.map(ts => ts.solarEnergyExported / 1000);
+        const batteryChargeData = historyData.timeSeries.map(ts => (ts.batteryEnergyImportedFromGrid + ts.batteryEnergyImportedFromSolar) / 1000);
+
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Home Usage (kWh)',
+                        data: homeUsageData,
+                        backgroundColor: 'rgba(91, 192, 222, 0.6)', // Blue
+                    },
+                    {
+                        label: 'Grid Export (kWh)',
+                        data: gridExportData,
+                        backgroundColor: 'rgba(92, 184, 92, 0.6)', // Green
+                    },
+                    {
+                        label: 'Battery Charge (kWh)',
+                        data: batteryChargeData,
+                        backgroundColor: 'rgba(240, 173, 78, 0.6)', // Orange
+                    }
+                ]
+            },
+            options: {
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day',
+                            tooltipFormat: 'PP',
+                            displayFormats: {day: 'MMM d'}
+                        },
+                        stacked: true,
+                    },
+                    y: {
+                        beginAtZero: true,
+                        stacked: true,
+                        title: {display: true, text: 'Energy (kWh)'}
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+    /*]]>*/
+</script>
+</body>
+</html>

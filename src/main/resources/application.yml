@@ -1,0 +1,183 @@
+spring:
+  application:
+    name: icewheel-energy
+  # Why: The init mode is set to 'always' to ensure that schema.sql is executed on startup for all
+  # database types. This is necessary for creating tables like 'shedlock' that are not managed by JPA entities.
+  sql:
+    init:
+      mode: always
+
+  # Database Configuration
+  # Why: The default profile is now configured to use an in-memory H2 database.
+  # This allows for rapid startup and development without requiring an external database.
+  datasource:
+    url: jdbc:h2:mem:icewheeldb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ''
+  
+  # JPA Configuration
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+  
+  # H2 Console Configuration (for development only)
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+  
+  # Security Configuration
+  security:
+#    user:
+#      name: admin
+#      password: ${ADMIN_PASSWORD:admin}  # Default is 'admin', override with environment variable
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${GOOGLE_CLIENT_ID:dummy-client-id}
+            client-secret: ${GOOGLE_CLIENT_SECRET:dummy-secret}
+            scope:
+              - email
+              - profile
+              - openid
+
+  # Session Configuration
+  session:
+    store-type: jdbc
+    jdbc:
+      initialize-schema: always
+      table-name: SPRING_SESSION
+
+  threads:
+    virtual:
+      enabled: true
+# Server Configuration
+server:
+  port: 8081
+  servlet:
+    context-path: /
+    session:
+      cookie:
+        http-only: true
+        secure: ${SESSION_COOKIE_SECURE:false}
+        same-site: lax
+  error:
+    include-message: never
+    include-binding-errors: never
+
+# Tesla API Configuration
+tesla:
+  client-id: ${TESLA_CLIENT_ID:dummy-client-id}
+  client-secret: ${TESLA_CLIENT_SECRET:dummy-secret}
+  audience: ${TESLA_AUDIENCE:https://fleet-api.prd.na.vn.cloud.tesla.com}
+  locale: ${TESLA_LOCALE:en-US}
+  scope: ${TESLA_SCOPE:openid user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds energy_device_data energy_cmds offline_access}
+  domain: ${APP_DOMAIN:localhost}
+  redirect-uri: ${app.protocol}://${tesla.domain}:${server.port}/api/tesla/fleet/auth/callback
+  auth-url: https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize
+  token-url: https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token
+  api-base-url: ${tesla.audience}
+  regions:
+    na: https://fleet-api.prd.na.vn.cloud.tesla.com
+    eu: https://fleet-api.prd.eu.vn.cloud.tesla.com
+
+# Application Configuration
+app:
+  protocol: ${APP_PROTOCOL:http} # Use 'https' in production by setting the APP_PROTOCOL environment variable
+  token-refresh:
+    cron: "0 0 */1 * * *"  # Run every hour
+    threshold-seconds: 3600  # Refresh tokens with less than 1 hour remaining
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.springframework.security.oauth2: INFO
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+---
+spring:
+  config:
+    activate:
+      on-profile: postgres
+
+  # PostgreSQL Database Configuration
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:icewheel-energy}
+    username: ${DB_USER:postgres}
+    password: ${DB_PASSWORD:example}
+    driver-class-name: org.postgresql.Driver
+  session:
+    jdbc:
+      initialize-schema: always
+  # JPA/Hibernate settings for PostgreSQL
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+
+---
+spring:
+  config:
+    activate:
+      on-profile: h2
+
+  # H2 datasource configuration. Using file mode so data persists across restarts.
+  datasource:
+    url: jdbc:h2:file:./data/tesladb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+    # Why MODE=PostgreSQL: Improves SQL compatibility (e.g., functions, keywords) when our code or
+    # schema uses Postgres idioms. DATABASE_TO_LOWER helps with quoted identifiers.
+    driver-class-name: org.h2.Driver
+    # Credentials are parameterized so you can align with an existing H2 file DB to avoid
+    # JDBC 28000-232 (Wrong user name or password). If your ./data/tesladb.* was created with
+    # a different password (e.g., from older configs), start with DB_PASSWORD set to that value.
+    # To reset, delete the existing files and start with the desired credentials.
+    username: ${DB_USER:sa}
+    password: ${DB_PASSWORD:password}
+
+  # JPA/Hibernate settings for H2
+  jpa:
+    # Use H2 dialect so Hibernate generates compatible DDL for H2.
+    database-platform: org.hibernate.dialect.H2Dialect
+    # Why: ddl-auto is set to create-drop to ensure that the database is created from scratch for each test run.
+    # This makes the tests independent of each other and of the local development database.
+    hibernate:
+      ddl-auto: update # Why: Make local/H2 usage seamless by auto-creating/upgrading schema.
+
+  # Spring Session tables (used by spring-session-jdbc) should be created automatically on H2.
+  session:
+    jdbc:
+      initialize-schema: always
+
+  # Optional H2 console for local development only. Do not expose in production.
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: false
+
+# Logging tuned to defaults for H2 profile.
+logging:
+  level:
+    root: INFO

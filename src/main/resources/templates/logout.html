@@ -1,0 +1,52 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-bs-theme="auto">
+
+<head th:replace="~{fragments/header :: head(pageTitle='Logout')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+
+<main class="container flex-grow-1 d-flex flex-column justify-content-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5 col-xl-4">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-body p-5 text-center">
+                    <i class="bi bi-check-circle-fill display-3 text-success mb-3"></i>
+                    <h3 class="card-title fw-bold mb-2">Signed Out</h3>
+                    <p class="card-text text-muted mb-4">
+                        You have been successfully signed out of Icewheel Energy.
+                    </p>
+                    <div class="d-grid">
+                        <a class="btn btn-primary btn-lg" th:href="@{/login.html}" role="button">
+                            <i class="bi bi-box-arrow-in-right me-2"></i> Return to Login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+
+</body>
+</html>

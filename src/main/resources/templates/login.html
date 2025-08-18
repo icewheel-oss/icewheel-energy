@@ -1,0 +1,63 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" data-bs-theme="auto">
+
+<head th:replace="~{fragments/header :: head(pageTitle=${pageTitle})}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+
+<main class="container flex-grow-1 d-flex flex-column justify-content-center py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5 col-xl-4">
+            <div class="card shadow-lg border-0 rounded-4">
+                <div class="card-body p-5 text-center">
+                    <i class="bi bi-snow display-3 text-primary mb-3"></i>
+                    <h3 class="card-title fw-bold mb-2">Icewheel Energy</h3>
+                    <p class="card-text text-muted mb-4">
+                        Sign in to manage your Powerwall and optimize your energy usage.
+                    </p>
+                    <div class="d-grid">
+                        <a class="btn btn-primary btn-lg" href="/oauth2/authorization/google" role="button">
+                            <i class="bi bi-google me-2"></i> Sign in with Google
+                        </a>
+                    </div>
+                    <div class="mt-4 small text-muted" style="font-size: 0.8rem;">
+                        <p class="text-center mb-1">
+                            By signing in, you agree to our <a th:href="@{/terms}" class="text-muted">Terms of
+                            Service</a>.
+                        </p>
+                        <p class="text-center mb-0">
+                            This is free software provided under the <a th:href="@{/license}" class="text-muted">GPLv3
+                            License</a>. It is provided "as is" without warranty. IceWheel LLC and its developers bear
+                            no responsibility for any harm or damages. Use at your own risk.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+
+</body>
+</html>

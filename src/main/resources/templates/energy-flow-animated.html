@@ -1,0 +1,211 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head th:replace="~{fragments/header :: head(pageTitle='Energy Flow Animated')}"></head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+    <nav th:replace="~{fragments/header :: navbar(activePage='energy-flow-animated')}"></nav>
+
+    <main class="container my-5 flex-grow-1">
+        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+            <i class="bi bi-stars display-3 text-primary"></i>
+            <h1 class="display-5 fw-bold mt-3">Unlock Your Home's Energy Potential</h1>
+            <p class="col-lg-8 mx-auto fs-5 text-muted">
+                Connect your Tesla account to see a real-time animation of your energy flow.
+            </p>
+            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+                <i class="bi bi-plug-fill me-2"></i>
+                Securely Connect to Tesla
+            </a>
+        </div>
+
+        <div th:if="${teslaConnected}">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="display-6">Energy Flow</h1>
+            </div>
+
+            <div th:if="${liveStatus == null or siteInfo == null}" class="text-center p-5 bg-body-tertiary rounded-3">
+                <i class="bi bi-battery-half display-3 text-primary"></i>
+                <h2 class="h4 mt-3">Energy Flow Unavailable</h2>
+                <p class="col-lg-8 mx-auto fs-5 text-muted">
+                    We couldn't find a Powerwall battery associated with your account. The energy flow diagram requires a battery product to display live data.
+                </p>
+                <a th:href="@{/products}" class="btn btn-primary mt-3">
+                    <i class="bi bi-lightning-charge-fill me-2"></i>View My Products
+                </a>
+            </div>
+
+            <div class="row" th:if="${liveStatus != null and siteInfo != null}" th:attr="data-site-id=${siteId}" id="energy-flow-container">
+                <div class="col-12">
+                    <div class="card shadow-sm">
+                        <div class="card-body">
+                            <div class="energy-animation-container">
+                                <svg viewBox="0 0 800 600" preserveAspectRatio="xMidYMid meet" id="energy-svg">
+                                    <defs>
+                                        <!-- Why: Using SVG patterns is the correct way to apply complex, animated fills (like stripes) to SVG strokes. -->
+                                        <!-- Each pattern has a base color and animating diagonal lines to simulate a Bootstrap-style progress bar. -->
+
+                                        <!-- Solar Flow Pattern -->
+                                        <pattern id="solar-pattern" patternUnits="userSpaceOnUse" width="20"
+                                                 height="20">
+                                            <rect width="20" height="20" fill="#ffc107"></rect>
+                                            <path d="M-5,5 l10,-10 M-5,15 l10,-10 M5,25 l10,-10 M15,25 l10,-10"
+                                                  stroke="rgba(0,0,0,0.2)" stroke-width="3"></path>
+                                            <animate attributeName="x" from="0" to="20" dur="0.7s"
+                                                     repeatCount="indefinite"/>
+                                        </pattern>
+
+                                        <!-- Grid Import Flow Pattern -->
+                                        <pattern id="grid-import-pattern" patternUnits="userSpaceOnUse" width="20"
+                                                 height="20">
+                                            <rect width="20" height="20" fill="#dc3545"></rect>
+                                            <path d="M-5,5 l10,-10 M-5,15 l10,-10 M5,25 l10,-10 M15,25 l10,-10"
+                                                  stroke="rgba(0,0,0,0.2)" stroke-width="3"></path>
+                                            <animate attributeName="x" from="0" to="20" dur="0.7s"
+                                                     repeatCount="indefinite"/>
+                                        </pattern>
+
+                                        <!-- Grid Export Flow Pattern (animation reversed) -->
+                                        <pattern id="grid-export-pattern" patternUnits="userSpaceOnUse" width="20"
+                                                 height="20">
+                                            <rect width="20" height="20" fill="#17a2b8"></rect>
+                                            <path d="M-5,5 l10,-10 M-5,15 l10,-10 M5,25 l10,-10 M15,25 l10,-10"
+                                                  stroke="rgba(0,0,0,0.2)" stroke-width="3"></path>
+                                            <animate attributeName="x" from="20" to="0" dur="0.7s"
+                                                     repeatCount="indefinite"/>
+                                        </pattern>
+
+                                        <!-- Powerwall Discharge Flow Pattern -->
+                                        <pattern id="powerwall-discharge-pattern" patternUnits="userSpaceOnUse"
+                                                 width="20" height="20">
+                                            <rect width="20" height="20" fill="#28a745"></rect>
+                                            <path d="M-5,5 l10,-10 M-5,15 l10,-10 M5,25 l10,-10 M15,25 l10,-10"
+                                                  stroke="rgba(0,0,0,0.2)" stroke-width="3"></path>
+                                            <animate attributeName="x" from="0" to="20" dur="0.7s"
+                                                     repeatCount="indefinite"/>
+                                        </pattern>
+                                    </defs>
+                                    <!-- Grid -->
+                                    <g id="grid">
+                                        <rect x="20" y="250" width="60" height="100" fill="#6c757d" />
+                                        <text x="50" y="370" text-anchor="middle" font-size="14">Grid</text>
+                                        <text id="grid-value" x="50" y="390" text-anchor="middle" font-weight="bold"
+                                              font-size="16"
+                                              th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(liveStatus.gridPower / 1000), 1, 2)} + ' kW'"></text>
+                                    </g>
+
+                                    <!-- House -->
+                                    <g id="house">
+                                        <path d="M400 150 L650 250 L650 450 L150 450 L150 250 Z" fill="#f8f9fa" stroke="#343a40" stroke-width="2"/>
+                                        <!-- Roof -->
+                                        <path d="M400 150 L670 250 L130 250 Z" fill="#343a40"/>
+                                        <text x="400" y="470" text-anchor="middle" font-size="14">Home</text>
+                                        <text id="home-value" x="400" y="490" text-anchor="middle" font-weight="bold"
+                                              font-size="16"
+                                              th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(liveStatus.loadPower / 1000), 1, 2)} + ' kW'"></text>
+                                    </g>
+
+                                    <!-- Solar Panels -->
+                                    <g id="solar">
+                                        <rect x="200" y="180" width="180" height="60" fill="#007bff" transform="rotate(-20 290 210)" />
+                                        <rect x="420" y="180" width="180" height="60" fill="#007bff" transform="rotate(20 510 210)" />
+                                        <text x="400" y="130" text-anchor="middle" font-size="14">Solar</text>
+                                        <text id="solar-value" x="400" y="110" text-anchor="middle" font-weight="bold"
+                                              font-size="16"
+                                              th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(liveStatus.solarPower / 1000), 1, 2)} + ' kW'"></text>
+                                    </g>
+
+                                    <!-- Powerwall -->
+                                    <g id="powerwall">
+                                        <rect x="680" y="300" width="40" height="100" fill="#28a745" />
+                                        <text x="700" y="420" text-anchor="middle" font-size="14">Powerwall</text>
+                                        <text id="powerwall-value" x="700" y="440" text-anchor="middle"
+                                              font-weight="bold" font-size="16"
+                                              th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(liveStatus.batteryPower / 1000), 1, 2)} + ' kW'"></text>
+                                        <text id="powerwall-percentage" x="700" y="460" text-anchor="middle"
+                                              font-size="14"
+                                              th:text="${#numbers.formatDecimal(liveStatus.percentageCharged, 1, 1)} + '%'"></text>
+                                    </g>
+
+                                    <!-- Flow Lines -->
+                                    <path id="solar-to-house" class="flow-line" d="M400 200 Q 400 250 400 300"/>
+                                    <path id="solar-to-powerwall" class="flow-line" d="M520 220 Q 600 250 680 350"/>
+                                    <path id="grid-to-house" class="flow-line" d="M80 300 H 350"/>
+                                    <path id="grid-to-powerwall" class="flow-line" d="M80 320 Q 380 500 680 380"/>
+                                    <path id="powerwall-to-house" class="flow-line" d="M680 350 Q 550 400 400 450"/>
+                                    <path id="house-to-grid" class="flow-line" d="M350 300 H 80"/>
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer th:replace="~{fragments/footer :: page_footer}"></footer>
+    <div th:replace="~{fragments/footer :: scripts}"></div>
+    <script th:src="@{/js/energy-flow-calculator.js}"></script>
+    <script th:src="@{/js/energy-flow-animated.js}"></script>
+
+    <style>
+        .energy-animation-container {
+            width: 100%;
+            max-width: 900px;
+            margin: auto;
+        }
+
+        .flow-line {
+            fill: none;
+            stroke: transparent; /* Default stroke is transparent, color comes from pattern */
+            stroke-width: 4; /* A bit thicker by default */
+            opacity: 0.3;
+            transition: all 0.5s ease-in-out;
+        }
+
+        .flow-line.active {
+            opacity: 1;
+            stroke-width: 12; /* Much thicker when active to show the pattern clearly */
+        }
+
+        /* Apply the correct animated pattern based on the flow type */
+        #solar-to-house.active,
+        #solar-to-powerwall.active {
+            stroke: url(#solar-pattern);
+        }
+
+        #grid-to-house.active,
+        #grid-to-powerwall.active {
+            stroke: url(#grid-import-pattern);
+        }
+
+        #powerwall-to-house.active {
+            stroke: url(#powerwall-discharge-pattern);
+        }
+
+        #house-to-grid.active {
+            stroke: url(#grid-export-pattern);
+        }
+    </style>
+</body>
+
+</html>

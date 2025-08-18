@@ -1,0 +1,48 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<div th:fragment="login_form">
+    <div class="text-center mb-5">
+        <div class="mb-4">
+            <span class="fa-stack fa-2x">
+                <i class="bi bi-snow fa-stack-2x text-primary"></i>
+                <i class="bi bi-lightning-charge fa-stack-1x text-warning"></i>
+            </span>
+        </div>
+        <h1 class="h3 mt-2">Icewheel Energy</h1>
+        <p class="text-muted">Intelligent energy savings, simplified.</p>
+    </div>
+
+    <div class="d-grid">
+        <a class="btn btn-primary btn-lg" href="/oauth2/authorization/google" role="button">
+            <i class="bi bi-google me-2"></i> Sign in with Google
+        </a>
+    </div>
+
+    <div class="text-center mt-4">
+        <p class="text-muted small">
+            By signing in, you agree to our <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a>.
+        </p>
+    </div>
+</div>
+
+</html>

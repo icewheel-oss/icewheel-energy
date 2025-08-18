@@ -1,0 +1,338 @@
+<!--
+  ~ IceWheel Energy
+  ~ Copyright (C) 2025 IceWheel LLC
+  ~
+  ~ This program is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ This program is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with this program.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  -->
+
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+
+<head>
+    <th:block th:replace="~{fragments/header :: head(pageTitle='Powerwall Schedules')}"></th:block>
+    <!-- Add CSRF tokens for AJAX requests -->
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+</head>
+
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='schedules')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+
+    <!-- Case 1: Tesla account is NOT connected -->
+    <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
+        <i class="bi bi-stars display-3 text-primary"></i>
+        <h1 class="display-5 fw-bold mt-3">Connect Your Account to Use Schedules</h1>
+        <p class="col-lg-8 mx-auto fs-5 text-muted">
+            To create and manage automation schedules for your Powerwall, you first need to securely connect your Tesla account.
+        </p>
+        <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
+            <i class="bi bi-plug-fill me-2"></i>
+            Securely Connect to Tesla
+        </a>
+    </div>
+
+    <!-- Case 2: Tesla account IS connected -->
+    <div th:if="${teslaConnected}">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="display-6">Powerwall Schedules</h1>
+            <div>
+                <a th:href="@{/schedules/history}" class="btn btn-outline-secondary" title="View all changes to schedules (create, update, delete)">
+                    <i class="bi bi-clock-history me-2"></i>Change History
+                </a>
+                <a th:href="@{/schedules/executions}" class="btn btn-outline-secondary ms-2" title="View a log of every time a schedule has run">
+                    <i class="bi bi-robot me-2"></i>Trigger Log
+                </a>
+                <button id="import-btn" class="btn btn-outline-secondary ms-2"
+                        title="Import schedules from a JSON file">
+                    <i class="bi bi-upload me-2"></i>Import
+                </button>
+                <a th:href="@{/api/schedules/export}" class="btn btn-outline-secondary ms-2"
+                   title="Export all schedules to a JSON file">
+                    <i class="bi bi-download me-2"></i>Export
+                </a>
+                <button id="new-schedule-btn" class="btn btn-primary ms-2" data-bs-toggle="modal" data-bs-target="#scheduleModal">
+                    <i class="bi bi-plus-circle-fill me-2"></i>New Schedule
+                </button>
+            </div>
+        </div>
+
+        <!-- Compact Battery Status -->
+        <div th:if="${products != null and not #lists.isEmpty(products)}" class="mb-4">
+            <div class="d-flex align-items-center gap-4 flex-wrap">
+                <h2 class="h5 mb-0 text-muted">Battery Status:</h2>
+                <div th:each="product : ${products}" class="d-flex align-items-center gap-2" th:attr="data-site-id=${product.energySiteId}">
+                    <i class="bi bi-lightning-charge-fill text-secondary"></i>
+                    <span class="fw-bold" th:text="${product.siteName}">Site Name</span>
+                    <span class="badge rounded-pill" th:classappend="${product.percentageCharged > 70 ? 'bg-success-subtle text-success-emphasis' : (product.percentageCharged > 30 ? 'bg-warning-subtle text-warning-emphasis' : 'bg-danger-subtle text-danger-emphasis')}" th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 0)} + '%'"></span>
+                </div>
+            </div>
+            <hr class="my-4">
+        </div>
+
+        <!-- This container will be dynamically populated by schedules.js -->
+        <div id="schedule-list-container">
+            <!-- Loading Spinner -->
+            <div id="loading-spinner" class="text-center p-5">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading schedules...</p>
+            </div>
+
+            <!-- Empty State Message -->
+            <div id="empty-state" class="text-center p-5 bg-body-tertiary rounded-3 d-none">
+                <i class="bi bi-calendar2-plus display-3 text-secondary"></i>
+                <h2 class="h4 mt-3">No Schedules Found</h2>
+                <p class="col-lg-8 mx-auto fs-5 text-muted">
+                    Click "New Schedule" to create your first automation and start saving on energy costs.
+                </p>
+            </div>
+
+            <!-- Schedule cards will be injected here -->
+            <div id="schedule-list" class="row row-cols-1 row-cols-lg-2 g-4"></div>
+        </div>
+    </div>
+</main>
+
+<!-- Schedule Card Template -->
+<template id="schedule-card-template">
+    <div class="col">
+        <div class="card h-100 shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h5 class="card-title mb-1" data-field="name">Schedule Name</h5>
+                        <p class="card-subtitle text-muted" data-field="description">Schedule Description</p>
+                    </div>
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" data-action="toggle">
+                    </div>
+                </div>
+                <hr>
+                <div class="d-flex align-items-center text-primary mb-3">
+                    <i class="bi bi-clock-fill fs-4 me-3"></i>
+                    <div class="w-100">
+                        <div class="d-flex justify-content-between">
+                            <span>On-Peak Period</span>
+                            <span class="h5 font-monospace" data-field="time">7:00 AM - 9:00 PM</span>
+                        </div>
+                        <div class="small text-muted" data-field="days">Mon, Tue, Wed, Thu, Fri</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-center text-success">
+                    <i class="bi bi-battery-charging fs-4 me-3"></i>
+                    <div class="w-100">
+                        <div class="d-flex justify-content-between">
+                            <span>Backup Reserve</span>
+                            <span><strong data-field="percent">20%</strong> (On-Peak) / <strong data-field="offPeakPercent">80%</strong> (Off-Peak)</span>
+                        </div>
+                        <div class="small text-muted d-flex justify-content-between">
+                            <span data-field="siteName">Powerwall at Home</span>
+                            <span data-field="siteBatteryLevel" class="fw-bold"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent border-top-0 pb-3 d-flex align-items-center">
+                <span class="me-auto text-muted small" data-field="reconciliationStatus">
+                    <!-- JS will inject status here -->
+                </span>
+                <button class="btn btn-sm btn-outline-secondary" data-action="edit" title="Edit schedule">
+                    <i class="bi bi-pencil-fill me-1"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger ms-2" data-action="delete" title="Delete schedule">
+                    <i class="bi bi-trash-fill me-1"></i> Delete
+                </button>
+            </div>
+        </div>
+    </div>
+</template>
+
+<!-- Modal for Create/Edit Schedule -->
+<div class="modal fade" id="scheduleModal" tabindex="-1" aria-labelledby="scheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleModalLabel">New Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="schedule-form" novalidate>
+                    <input type="hidden" id="scheduleId">
+
+                    <div class="mb-3">
+                        <label for="energySiteId" class="form-label">Energy Site</label>
+                        <select class="form-select" id="energySiteId" required>
+                            <option value="" disabled selected>Select a Powerwall...</option>
+                            <option th:each="p : ${products}" th:value="${p.energySiteId}" th:text="${p.siteName}"></option>
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Schedule Name</label>
+                        <input type="text" class="form-control" id="name" placeholder="e.g., Weekday Night Charging" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description (Optional)</label>
+                        <textarea class="form-control" id="description" rows="2" placeholder="e.g., Charge battery during off-peak hours"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">On-Peak Start Time</label>
+                            <div class="input-group">
+                                <select class="form-select" id="startHour" aria-label="Start Hour" style="flex: 2;"></select>
+                                <span class="input-group-text">:</span>
+                                <select class="form-select" id="startMinute" aria-label="Start Minute" style="flex: 2;"></select>
+                                <select class="form-select" id="startAmPm" aria-label="Start AM/PM" style="flex: 1;"></select>
+                            </div>
+                            <div class="form-text">The time when expensive rates begin.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">On-Peak End Time</label>
+                            <div class="input-group">
+                                <select class="form-select" id="endHour" aria-label="End Hour" style="flex: 2;"></select>
+                                <span class="input-group-text">:</span>
+                                <select class="form-select" id="endMinute" aria-label="End Minute" style="flex: 2;"></select>
+                                <select class="form-select" id="endAmPm" aria-label="End AM/PM" style="flex: 1;"></select>
+                            </div>
+                            <div class="form-text">The time when expensive rates end.</div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="onPeakBackupPercentSlider" class="form-label">On-Peak Backup</label>
+                            <div class="d-flex align-items-center">
+                                <input type="range" class="form-range" id="onPeakBackupPercentSlider" min="5" max="80" step="1" value="20">
+                                <div class="input-group ms-3" style="width: 140px;">
+                                    <input type="number" class="form-control" id="onPeakBackupPercentInput" min="5" max="80" value="20" aria-label="On-peak backup percentage">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="form-text mt-2">Low reserve to use battery during expensive hours.</div>
+                            <div id="onPeakWarning" class="form-text text-danger small d-none">Setting backup below 20% is not recommended.</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="offPeakBackupPercentSlider" class="form-label">Off-Peak Backup</label>
+                            <div class="d-flex align-items-center">
+                                <input type="range" class="form-range" id="offPeakBackupPercentSlider" min="5" max="80" step="1" value="80">
+                                <div class="input-group ms-3" style="width: 140px;">
+                                    <input type="number" class="form-control" id="offPeakBackupPercentInput" min="5" max="80" value="80" aria-label="Off-peak backup percentage">
+                                    <span class="input-group-text">%</span>
+                                </div>
+                            </div>
+                            <div class="form-text mt-2">High reserve to charge battery during cheap hours.</div>
+                            <div id="offPeakWarning" class="form-text text-danger small d-none">Setting backup below 20% is not recommended.</div>
+                        </div>
+                    </div>
+
+                    <div id="scheduleLogicWarning" class="alert alert-warning d-none" role="alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>Configuration Warning:</strong> Your On-Peak backup should be lower than your Off-Peak backup to save money.
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Run on these days</label>
+                        <div id="daysOfWeek" class="d-flex flex-wrap gap-2">
+                            <!-- Checkboxes will be dynamically inserted here by JS -->
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Correction Mode</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="reconciliationMode" id="modeContinuous"
+                                   value="CONTINUOUS" checked>
+                            <label class="form-check-label" for="modeContinuous">
+                                Continuous
+                                <small class="d-block text-muted">Always enforce this schedule. Overrides any manual
+                                    changes.</small>
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="reconciliationMode" id="modeStartupOnly"
+                                   value="STARTUP_ONLY">
+                            <label class="form-check-label" for="modeStartupOnly">
+                                Startup Only
+                                <small class="d-block text-muted">Corrects state once on application start, then allows
+                                    manual changes.</small>
+                            </label>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="submit" form="schedule-form" class="btn btn-primary" id="save-schedule-btn">Save Schedule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteConfirmModal" tabindex="-1" aria-labelledby="deleteConfirmModalLabel"
+     aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteConfirmModalLabel">Delete Schedule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to permanently delete the schedule <strong
+                        id="schedule-name-to-delete"></strong>?</p>
+                <p class="text-danger"><i class="bi bi-exclamation-triangle-fill me-2"></i>This action cannot be undone.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-delete-btn">Delete</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Hidden file input for the import functionality -->
+<input type="file" id="import-file-input" class="d-none" accept="application/json">
+
+<!-- Toast container for notifications -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <!-- Toasts will be appended here by schedules.js -->
+</div>
+
+<!-- Toast Template -->
+<template id="toast-template">
+    <div class="toast" role="alert" aria-live="assertive" aria-atomic="true">
+        <div class="toast-header">
+            <i class="bi bi-bell-fill me-2"></i>
+            <strong class="me-auto">Notification</strong>
+            <small>Just now</small>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div class="toast-body"></div>
+    </div>
+</template>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+<!-- Pass backend data to the frontend script in a CSP-compliant way -->
+<script id="products-data" type="application/json" th:inline="javascript">/*[[${products}]]*/</script>
+<!-- Page-specific JavaScript -->
+<script th:src="@{/js/schedules.js}"></script>
+</body>
+</html>

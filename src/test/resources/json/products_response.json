@@ -1,0 +1,20 @@
+{
+  "response": [
+    {
+      "id": "VEHICLE_ID_12345",
+      "vin": "VIN_ABCDE12345",
+      "display_name": "Test Vehicle",
+      "device_type": "vehicle",
+      "energy_site_id": null
+    },
+    {
+      "id": "ENERGY_SITE_ID_67890",
+      "device_type": "energy",
+      "resource_type": "battery",
+      "energy_site_id": "SITE_ID_67890",
+      "site_name": "My Test Home",
+      "percentage_charged": 80.0
+    }
+  ],
+  "count": 2
+}
