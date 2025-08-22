@@ -111,7 +111,8 @@ public class ScheduleApiController {
 		}
 		catch (ScheduleImportException e) {
 			// This catches validation errors from the service layer.
-			return ResponseEntity.badRequest().body(e.getMessage());
+			log.warn("Schedule import validation failed", e);
+			return ResponseEntity.badRequest().body("Import failed: The uploaded schedule file contains invalid data. Please check your file and try again.");
 		}
 		catch (IOException e) {
 			// This can happen if the file is corrupt or not valid JSON.
