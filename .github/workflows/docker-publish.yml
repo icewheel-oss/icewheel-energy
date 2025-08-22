@@ -35,12 +35,12 @@ jobs:
 
     - name: Build and push amd64 image
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 -Dspring-boot.build-image.builder=paketobuildpacks/builder-jammy-buildpack-less-base
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
         docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
 
     - name: Build and push arm64 image
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64 -Dspring-boot.build-image.builder=paketobuildpacks/builder-jammy-buildpack-less-base -Dspring-boot.build-image.platform=linux/arm64
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64 -Dspring-boot.build-image.platform=linux/arm64
         docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
 
     - name: Create and push manifest
