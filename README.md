@@ -11,31 +11,48 @@ cycles based on your electricity tariff (e.g., on-peak and off-peak hours).
 
 ## Quick Start
 
-The quickest way to get started is with Docker Compose.
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/icewheel/icewheel-energy.git
+    cd icewheel-energy
+    ```
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/icewheel/icewheel-energy.git
-   cd icewheel-energy
-   ```
+2.  **Configure your environment:**
+    Create a `.env` file by copying the `.env.example` file. Then, edit the `.env` file to provide the necessary credentials.
+    ```bash
+    cp .env.example .env
+    nano .env
+    ```
 
-2. **Create your environment file:**
-   Copy the provided example file to `.env`.
-   ```bash
-   cp .env.example .env
-   ```
-
-3. **Configure your environment:**
-   Open the `.env` file in a text editor and fill in the required secrets for Google and Tesla APIs. Detailed instructions for obtaining these credentials are in the [configuration guide](./docs/getting-started/configuration.md).
-
-   **Note:** When setting up your Tesla and Google developer accounts, you can skip adding a payment method. The application uses free-tier APIs, so your account will still work without payment information. However, please be aware that both Google and Tesla may change their API pricing and policies at any time, and the developers of this application have no control over these changes.
-
-4. **Run the application:**
-   ```bash
-   docker-compose up -d
-   ```
+3.  **Run the application:**
+    ```bash
+    docker-compose up -d
+    ```
 
 The application will be available at `http://localhost:8081` (or the port you specified in your `.env` file).
+
+## Configuration
+
+Configuration is managed through environment variables. You can set these variables in a `.env` file in the project root.
+
+### Environment Variables
+
+| Variable              | Description                                                                                                                                                                 | Default Value       |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------- |
+| `APP_PORT`            | The port on which the application will be accessible.                                                                                                                       | `8081`              |
+| `DB_NAME`             | The name of the PostgreSQL database.                                                                                                                                        | `icewheel-energy`   |
+| `DB_USER`             | The username for the PostgreSQL database.                                                                                                                                   | `postgres`          |
+| `DB_PASSWORD`         | The password for the PostgreSQL database.                                                                                                                                   | `example`           |
+| `GOOGLE_CLIENT_ID`    | The client ID for your Google OAuth2 application. See [Google API Setup](./docs/getting-started/configuration.md#google-sso-setup) for details.                               |
+| `GOOGLE_CLIENT_SECRET`| The client secret for your Google OAuth2 application. See [Google API Setup](./docs/getting-started/configuration.md#google-sso-setup) for details.                             |
+| `TESLA_CLIENT_ID`     | The client ID for your Tesla API application. See [Tesla API Setup](./docs/getting-started/configuration.md#tesla-api-setup) for details.                                     |
+| `TESLA_CLIENT_SECRET` | The client secret for your Tesla API application. See [Tesla API Setup](./docs/getting-started/configuration.md#tesla-api-setup) for details.                                   |
+| `TESLA_REDIRECT_URI`  | The redirect URI for your Tesla API application. This must match the URI you configured in your Tesla developer account.                                                      | `http://localhost:8081/api/tesla/fleet/auth/callback` |
+| `APP_DOMAIN`          | The domain where your application is hosted. This is used to construct the `redirect-uri`.                                                                                | `localhost`         |
+| `APP_PROTOCOL`        | The protocol to use for the `redirect-uri` (`http` or `https`).                                                                                                            | `http`              |
+| `SESSION_COOKIE_SECURE`| Set to `true` in production when using HTTPS to ensure session cookies are sent only over secure connections.                                                              | `false`             |
+
+**Note:** When setting up your Tesla and Google developer accounts, you can skip adding a payment method. The application uses free-tier APIs, so your account will still work without payment information. However, please be aware that both Google and Tesla may change their API pricing and policies at any time, and the developers of this application have no control over these changes.
 
 ## License
 
