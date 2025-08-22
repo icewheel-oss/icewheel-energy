@@ -24,8 +24,12 @@ interact with Tesla products. When you connect your account, you will be redirec
 in and approve the connection.
 
 **Important**: Your Tesla username and password are never entered into or stored by the IceWheel Energy application. You
-provide them directly to Tesla, who then gives the application a secure token (like a limited-access key) to communicate
-with your Powerwall.
+  provide them directly to Tesla, who then gives the application a secure token (like a limited-access key) to communicate
+  with your Powerwall.
+
+**A Note on Tesla Developer Accounts:** When setting up your developer account with Tesla, you can skip adding a payment method. The application only uses APIs that are free for personal use.
+
+**Disclaimer:** Please be aware that Tesla may change its API policies and pricing at any time. The developers of this application have no control over these changes.
 
 This token allows the application to:
 

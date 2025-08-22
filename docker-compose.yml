@@ -1,32 +1,38 @@
-# This Docker Compose file sets up the application environment using a persistent H2 file database.
-# It uses an external application.yml for configuration and persists data in a local directory.
-#
-# To run:
-# 1. Build the Spring Boot application image: `./mvnw spring-boot:build-image`
-# 2. Create a directory for your data and configuration: `mkdir ./data`
-# 3. Copy `application.yaml.template` to `./data/application.yml` and fill in your secrets.
-# 4. Run `docker-compose up`
-#
 version: '3.8'
 
 services:
-  # Spring Boot Application Service
   app:
     image: ghcr.io/icewheel/icewheel-energy:latest
     container_name: icewheel-app
-    restart: no
+    restart: unless-stopped
     ports:
-      - "8081:8081"
-    volumes:
-      # Mounts the host's './data' directory to '/data' inside the container.
-      # This directory will store both the H2 database file and the configuration.
-      - ./data:/data
+      - "${APP_PORT:-8081}:8081"
     environment:
-      # Spring Profile
-      - SPRING_PROFILES_ACTIVE=h2
-      # Tell Spring Boot to load the external config file from the mounted volume.
-      - SPRING_CONFIG_LOCATION=file:/data/application.yml
-      # Override the datasource URL to use an absolute path inside the container, ensuring the DB is also stored in the volume.
-      # Why: The H2 INIT script is removed from the URL. Database initialization is now handled reliably by Spring Boot
-      # using `schema.sql` because `spring.sql.init.mode=always` is set in the base configuration.
-      - SPRING_DATASOURCE_URL=jdbc:h2:file:/data/tesladb;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH
+      - SPRING_PROFILES_ACTIVE=postgres
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${DB_NAME}
+      - SPRING_DATASOURCE_USERNAME=${DB_USER}
+      - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - TESLA_CLIENT_ID=${TESLA_CLIENT_ID}
+      - TESLA_CLIENT_SECRET=${TESLA_CLIENT_SECRET}
+      - TESLA_REDIRECT_URI=${TESLA_REDIRECT_URI}
+      - APP_DOMAIN=${APP_DOMAIN}
+      - APP_PROTOCOL=${APP_PROTOCOL}
+      - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE}
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16
+    container_name: icewheel-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_DB=${DB_NAME}
+      - POSTGRES_USER=${DB_USER}
+      - POSTGRES_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
