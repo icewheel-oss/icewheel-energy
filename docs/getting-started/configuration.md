@@ -6,12 +6,6 @@ guide explains all the available configuration options.
 When using Docker, you should create a `./data/application.yml` file and set your secrets there. When running without
 Docker, it is recommended to use environment variables.
 
-## Admin User
-
-| Environment Variable | `application.yml` Path   | Description                              | Default Value |
-|----------------------|--------------------------|------------------------------------------|---------------|
-| `ADMIN_PASSWORD`     | `security.user.password` | The password for the local `admin` user. | `admin`       |
-
 ## Google OAuth2 (for User Login)
 
 To enable user login with Google, you need to create OAuth2 credentials in the Google Cloud Console.
@@ -63,18 +57,12 @@ portal.
 7. Once the application is created, you will get a **Client ID** and **Client Secret**. You will need these for your
    `application.yml` file.
 
+**Important Note on Billing:** When you create developer accounts with Google and Tesla, you may be prompted to add a payment method. You can safely **skip this step**. IceWheel Energy is designed to use the free tiers of these services. For single-user, personal use, your API consumption will almost certainly fall within the free usage limits provided by both companies. For more details on Tesla's pricing, see the [official documentation](https://developer.tesla.com/docs/fleet-api/billing-and-limits).
+
+**Disclaimer:** The API policies and pricing of both Google and Tesla are subject to change at any time. The developers of IceWheel Energy have no control over these external factors.
+
 **Note:** If you deploy the application to a public domain, you will need to update these URIs in both the Google and
 Tesla developer consoles to match your domain.
-
-## Admin User (Optional)
-
-This application can be configured with a local `admin` user as a fallback in case Google SSO is unavailable. However,
-this is optional. If you prefer to rely exclusively on Google SSO, you can disable this user by commenting out or
-deleting the `security.user` section in your `application.yml` file.
-
-| Environment Variable | `application.yml` Path   | Description                              | Default Value |
-|----------------------|--------------------------|------------------------------------------|---------------|
-| `ADMIN_PASSWORD`     | `security.user.password` | The password for the local `admin` user. | `admin`       |
 
 ## Google OAuth2 (for User Login)
 
