@@ -35,12 +35,14 @@ jobs:
 
     - name: Build and push amd64 image
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
+        mvn spring-boot:build-image
+        docker tag icewheel-energy:${{ env.version }} ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
         docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
 
     - name: Build and push arm64 image
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64 -Dspring-boot.build-image.platform=linux/arm64
+        mvn spring-boot:build-image -Dspring-boot.build-image.platform=linux/arm64
+        docker tag icewheel-energy:${{ env.version }} ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
         docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
 
     - name: Create and push manifest
