@@ -3,7 +3,7 @@
 Before making any code changes or working on any task, please follow these steps:
 
 1. **Read Project Documentation**:
-    - First, read the `docs/README.md` file.
+    - First, read the `docs/index.md` file.
     - Review other relevant documentation files under the `docs` directory of the project.
 
 2. **Understand Requirements**:
