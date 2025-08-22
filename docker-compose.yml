@@ -12,7 +12,7 @@ version: '3.8'
 services:
   # Spring Boot Application Service
   app:
-    image: icewheel-energy:0.0.1-SNAPSHOT
+    image: ghcr.io/icewheel/icewheel-energy:latest
     container_name: icewheel-app
     restart: no
     ports:
