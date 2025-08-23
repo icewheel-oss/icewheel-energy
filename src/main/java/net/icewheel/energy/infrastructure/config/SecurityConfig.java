@@ -46,7 +46,7 @@ public class SecurityConfig {
 							authorizeRequests
 									// Why: Use PathRequest to safely match static resources and keep basic pages public without over-broad URL patterns
 									.requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
-									.requestMatchers("/login.html", "/license", "/terms", "/logout.html", "/", "/error", "/favicon.ico")
+									.requestMatchers("/login.html", "/license", "/terms", "/logout.html", "/", "/error", "/favicon.ico", "/robots.txt")
 									.permitAll()
 									// Publicly accessible well-known endpoint for Tesla domain verification
 									// Why: Required by Tesla Fleet API for domain verification; must be publicly accessible.
