@@ -1,5 +1,22 @@
 # IceWheel Energy
 
+## 🚀 Try the Live Demo!
+
+Want to see IceWheel Energy in action without installing anything? We've got you covered!
+
+**[Click here to access the live demo](https://energy.icewheel.dev/)**
+
+This is a development environment, so it's a great way to explore the features and see how the application works. However, please keep in mind:
+
+*   **It's not stable for long-term use.**
+*   **Data may be reset or deleted weekly.**
+
+We encourage you to try it out, and when you're ready for a stable, private instance, you can follow the instructions below to self-host.
+
+**P.S.** If the site doesn't open, it means we're working on it! We're constantly testing new features and improvements, so check back soon.
+
+---
+
 IceWheel Energy is a self-hosted application that gives you full control over your Tesla Powerwall charging schedule. By
 running your own instance, you can manage your Powerwall's behavior without relying on third-party services, ensuring
 your energy data remains private.
