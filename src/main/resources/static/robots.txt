@@ -1,0 +1,10 @@
+# robots.txt for Icewheel Energy
+# Allow all robots to crawl public pages; block sensitive endpoints.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /logout
+
+# Uncomment and adjust the following Sitemap URL if you host a sitemap
+# Sitemap: https://your-domain.example/sitemap.xml
