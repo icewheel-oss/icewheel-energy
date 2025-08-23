@@ -1,6 +1,15 @@
 spring:
   application:
     name: icewheel-energy
+  web:
+    resources:
+      cache:
+        period: 31536000
+      chain:
+        strategy:
+          content:
+            enabled: true
+            paths: /webjars/**, /css/**, /js/**
   # Why: The init mode is set to 'always' to ensure that schema.sql is executed on startup for all
   # database types. This is necessary for creating tables like 'shedlock' that are not managed by JPA entities.
   sql:
