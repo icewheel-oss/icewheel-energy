@@ -7,7 +7,7 @@ services:
       - "${APP_PORT:-8081}:8081"
     environment:
       - SPRING_PROFILES_ACTIVE=postgres
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://db:5432/${DB_NAME}
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://icewheel-db:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
       - SPRING_DATASOURCE_PASSWORD=${DB_PASSWORD}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -19,9 +19,11 @@ services:
       - APP_PROTOCOL=${APP_PROTOCOL}
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE}
     depends_on:
-      - db
+      - icewheel-db
+    volumes:
+      - ./icewheel-energy-data/config/application.yml:/app/resources/application.yml
 
-  db:
+  icewheel-db:
     image: postgres:16
     container_name: icewheel-db
     restart: unless-stopped
@@ -30,7 +32,4 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-volumes:
-  postgres_data:
+      - ./icewheel-energy-data/postgres-data:/var/lib/postgresql/data

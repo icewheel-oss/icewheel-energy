@@ -33,3 +33,4 @@ logs/
 
 # Misc
 node_modules/
+/icewheel-energy-data/
