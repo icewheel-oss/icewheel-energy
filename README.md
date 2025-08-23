@@ -13,6 +13,8 @@ This is a development environment, so it's a great way to explore the features a
 
 We encourage you to try it out, and when you're ready for a stable, private instance, you can follow the instructions below to self-host.
 
+**P.S.** If the site doesn't open, it means we're working on it! We're constantly testing new features and improvements, so check back soon.
+
 ---
 
 IceWheel Energy is a self-hosted application that gives you full control over your Tesla Powerwall charging schedule. By
