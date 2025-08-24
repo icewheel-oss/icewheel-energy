@@ -1,11 +1,14 @@
 services:
-  app:
+  icewheel-energy-app:
+    # For production, it's recommended to pin to a specific version tag instead of 'latest'
+    # e.g., image: ghcr.io/icewheel-oss/icewheel-energy:v1.2.3
     image: ghcr.io/icewheel-oss/icewheel-energy:latest
-    container_name: icewheel-app
+    container_name: icewheel-energy-app
     restart: unless-stopped
     ports:
       - "${APP_PORT:-8081}:8081"
     environment:
+      # Using a .env file at the root of the project is recommended for managing these values
       - SPRING_PROFILES_ACTIVE=postgres
       - SPRING_DATASOURCE_URL=jdbc:postgresql://icewheel-db:5432/${DB_NAME}
       - SPRING_DATASOURCE_USERNAME=${DB_USER}
@@ -19,12 +22,15 @@ services:
       - APP_PROTOCOL=${APP_PROTOCOL}
       - SESSION_COOKIE_SECURE=${SESSION_COOKIE_SECURE}
     depends_on:
-      - icewheel-db
+      icewheel-db:
+        condition: service_healthy # Wait for the DB to be ready before starting the app
     volumes:
-      - ./icewheel-energy-data/config/application.yml:/app/resources/application.yml
+      # Mount application.yml for external configuration.
+      # The target path /workspace/config/ is the standard location for Spring Boot buildpack images.
+      - ./icewheel-energy-data/config/application.yml:/workspace/config/application.yml
 
   icewheel-db:
-    image: postgres:16
+    image: postgres:17
     container_name: icewheel-db
     restart: unless-stopped
     environment:
@@ -32,4 +38,12 @@ services:
       - POSTGRES_USER=${DB_USER}
       - POSTGRES_PASSWORD=${DB_PASSWORD}
     volumes:
+      # Persist PostgreSQL data
       - ./icewheel-energy-data/postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+#    ports: # Uncomment for local development if you need to connect to the DB from your host machine
+#      - "5432:5432"

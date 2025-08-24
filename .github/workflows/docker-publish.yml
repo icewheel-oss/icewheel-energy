@@ -2,7 +2,9 @@ name: Docker Publish
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Trigger on pushes to the main branch
+    tags:
+      - 'v*' # Also trigger on version tags like v1.0.0, v1.2.3, etc.
 
 jobs:
   build:
@@ -22,9 +24,28 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
-    - name: Get project version
-      id: project
-      run: echo "version=$(mvn -q -Dexec.executable=echo -Dexec.args='${project.version}' --non-recursive exec:exec)" >> $GITHUB_ENV
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Docker meta
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ghcr.io/${{ github.repository }}
+        tags: |
+          # on push to main branch, create 'latest' tag
+          type=raw,value=latest,enable={{is_default_branch}}
+          # on push of a tag like v1.2.3, create tags '1.2.3', '1.2', '1'
+          type=semver,pattern={{version}}
+          type=semver,pattern={{major}}.{{minor}}
+          type=semver,pattern={{major}}
+          # also create a tag for the commit sha
+          type=sha,format=short
+
+    # Build the JAR once to be used by both image builds.
+    # This avoids compiling the code twice.
+    - name: Build JAR with Maven
+      run: mvn -B package --file pom.xml
 
     - name: Log in to GitHub Container Registry
       uses: docker/login-action@v3
@@ -33,24 +54,22 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # This command now uses the JAR built in the "Build JAR" step, making it much faster.
+    # We also name the image directly to avoid a separate 'docker tag' command.
     - name: Build and push amd64 image
       run: |
-        mvn spring-boot:build-image
-        docker tag icewheel-energy:${{ env.version }} ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
+        mvn spring-boot:build-image -Dspring-boot.build-image.image-name=ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 -Dspring-boot.build-image.platform=linux/amd64
         docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
 
+    # This also uses the pre-built JAR, avoiding a recompile.
     - name: Build and push arm64 image
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.platform=linux/arm64
-        docker tag icewheel-energy:${{ env.version }} ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
+        mvn spring-boot:build-image -Dspring-boot.build-image.image-name=ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64 -Dspring-boot.build-image.platform=linux/arm64
         docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
 
-    - name: Create and push manifest
+    - name: Create and push manifest list with all tags
       run: |
-        docker manifest create ghcr.io/${{ github.repository }}:${{ github.sha }} --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
-        docker manifest push ghcr.io/${{ github.repository }}:${{ github.sha }}
-
-    - name: Create and push latest manifest
-      run: |
-        docker manifest create ghcr.io/${{ github.repository }}:latest --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 --amend ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
-        docker manifest push ghcr.io/${{ github.repository }}:latest
+        docker buildx imagetools create \
+          $(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ') \
+          ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 \
+          ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
