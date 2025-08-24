@@ -233,6 +233,9 @@
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<image>
+						<name>${docker.image.name}</name>
+					</image>
 					<!--					<environmentVariables>-->
 					<!--						<BP_NATIVE_IMAGE>false</BP_NATIVE_IMAGE>-->
 					<!--					</environmentVariables>-->
