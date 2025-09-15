@@ -49,6 +49,31 @@ Using Docker is the easiest and recommended way to run the application.
 
    The application will be accessible at `http://localhost:8081`.
 
+## Connecting to Tesla from a Local Network
+
+If you are running the IceWheel Energy application on a local network (e.g., a home PC, Raspberry Pi, or other personal devices not directly accessible from the public internet), you must complete an extra step to connect your Tesla account.
+
+Tesla's API requires a public key to be hosted on a publicly accessible domain to validate ownership and secure communications. The application generates this key for you, but you need to make it available online.
+
+1.  **Find Your Public Key**
+
+    Once the application is running, you can find the public key by navigating to the developer information page at:
+    `http://localhost:8081/developer/application-info`
+
+2.  **Host the Public Key**
+
+    You must host this public key at the following path on a public domain:
+    `/.well-known/appspecific/com.tesla.3p.public-key.pem`
+
+    You have a couple of options to do this:
+
+    *   **Easy Method (Recommended):** Use the free Google Cloud Run Function we provide. It's a simple, free-tier solution to host your key. Follow the instructions at:
+        [icewheel-energy-key-beacon-function on GitHub](https://github.com/icewheel-oss/icewheel-energy-key-beacon-function)
+
+    *   **Advanced Method:** Host the public key with your preferred hosting provider. You can follow Tesla's official developer documentation for instructions on how to generate and host the key yourself.
+
+After successfully hosting your public key, you can proceed with configuring the OAuth flow to connect your Tesla account.
+
 ## Running without Docker
 
 If you prefer to run the application without Docker, you can do so using Maven.
