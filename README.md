@@ -48,6 +48,12 @@ cycles based on your electricity tariff (e.g., on-peak and off-peak hours).
 
 The application will be available at `http://localhost:8081` (or the port you specified in your `.env` file).
 
+## Important Note for Local Deployments
+
+If you are running this application on a local network (e.g., your home computer or a Raspberry Pi), you must make your application's public key publicly available for Tesla's servers to verify it.
+
+**For detailed instructions, please see the [Connecting to Tesla from a Local Network](./docs/getting-started/run.md#connecting-to-tesla-from-a-local-network) section in our documentation.**
+
 ## Configuration
 
 Configuration is managed through environment variables. You can set these variables in a `.env` file in the project root.
