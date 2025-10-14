@@ -2,7 +2,7 @@ name: Docker Publish
 
 on:
   push:
-    branches: [ "main" ] # Trigger on pushes to the main branch
+    branches: [ "main", "beta" ] # Trigger on pushes to the main and beta branches
     tags:
       - 'v*' # Also trigger on version tags like v1.0.0, v1.2.3, etc.
 
@@ -33,13 +33,11 @@ jobs:
       with:
         images: ghcr.io/${{ github.repository }}
         tags: |
-          # on push to main branch, create 'latest' tag
-          type=raw,value=latest,enable={{is_default_branch}}
-          # on push of a tag like v1.2.3, create tags '1.2.3', '1.2', '1'
+          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
           type=semver,pattern={{major}}
-          # also create a tag for the commit sha
           type=sha,format=short
 
     # Build the JAR once to be used by both image builds.
