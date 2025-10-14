@@ -53,7 +53,7 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     # This command now uses the JAR built in the "Build JAR" step, making it much faster.
-    # We also name the image directly to avoid a separate 'docker tag' command.
+    # We also name the image directly to avoid a separate 'docker tag' command
     - name: Build and push amd64 image
       run: |
         TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr '\n' ',')
