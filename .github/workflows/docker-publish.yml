@@ -58,4 +58,5 @@ jobs:
     # We also name the image directly to avoid a separate 'docker tag' command.
     - name: Build and push amd64 image
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }} -Dspring-boot.build-image.tags=${{ steps.meta.outputs.tags }} -Dspring-boot.build-image.publish=true
+        TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr '\n' ',')
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }} -Dspring-boot.build-image.tags=${TAGS} -Dspring-boot.build-image.publish=true
