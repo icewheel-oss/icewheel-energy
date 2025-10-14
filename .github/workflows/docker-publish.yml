@@ -24,6 +24,9 @@ jobs:
         distribution: 'temurin'
         cache: maven
 
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
 
@@ -54,7 +57,7 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Build and push amd  64 image
+    - name: Build and push amd64 image
       id: build-amd64
       run: |
         mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 -Dspring-boot.build-image.platform=linux/amd64
@@ -71,6 +74,6 @@ jobs:
     - name: Create and push manifest list with all tags
       run: |
         docker buildx imagetools create \
-          $(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ') \
-          ${{ steps.build-amd64.outputs.digest }} \
+          $(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ')
+          ${{ steps.build-amd64.outputs.digest }}
           ${{ steps.build-arm64.outputs.digest }}
