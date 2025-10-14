@@ -66,19 +66,10 @@ jobs:
         GITHUB_REPOSITORY: ${{ github.repository }}
         META_TAGS: ${{ steps.meta.outputs.tags }}
       run: |
-        if [ "$GITHUB_REF" = "refs/heads/main" ]; then
-          # Default branch builds publish :latest implicitly (no tag on imageName)
-          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}"
-        elif [ "$GITHUB_REF" = "refs/heads/beta" ]; then
-          # Beta branch must never push :latest; force default tag to :beta
+        if [ "$GITHUB_REF" = "refs/heads/beta" ]; then
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:beta"
-        elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
-          # Tag builds should not push :latest; use the tag ref as the default tag
-          REF_TAG="${GITHUB_REF#refs/tags/}"
-          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:$REF_TAG"
         else
-          # Fallback (not expected with current triggers): use short SHA as default tag
-          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA::7}"
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}"
         fi
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
         mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.publish=true
