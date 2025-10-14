@@ -2,9 +2,9 @@ name: Docker Publish
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main" ] # Trigger on pushes to the main branch
     tags:
-      - 'v*'
+      - 'v*' # Also trigger on version tags like v1.0.0, v1.2.3, etc.
 
 jobs:
   build:
@@ -23,9 +23,6 @@ jobs:
         java-version: '24'
         distribution: 'temurin'
         cache: maven
-
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
 
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -57,23 +54,8 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
+    # This command now uses the JAR built in the "Build JAR" step, making it much faster.
+    # We also name the image directly to avoid a separate 'docker tag' command.
     - name: Build and push amd64 image
-      id: build-amd64
       run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64 -Dspring-boot.build-image.platform=linux/amd64
-        docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64
-        echo "digest=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ github.repository }}:${{ github.sha }}-amd64)" >> $GITHUB_OUTPUT
-
-    - name: Build and push arm64 image
-      id: build-arm64
-      run: |
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64 -Dspring-boot.build-image.platform=linux/arm64
-        docker push ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64
-        echo "digest=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ github.repository }}:${{ github.sha }}-arm64)" >> $GITHUB_OUTPUT
-
-    - name: Create and push manifest list with all tags
-      run: |
-        docker buildx imagetools create \
-          $(echo "${{ steps.meta.outputs.tags }}" | sed 's/^/--tag /' | tr '\n' ' ')
-          ${{ steps.build-amd64.outputs.digest }}
-          ${{ steps.build-arm64.outputs.digest }}
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }} -Dspring-boot.build-image.tags=${{ steps.meta.outputs.tags }} -Dspring-boot.build-image.publish=true
