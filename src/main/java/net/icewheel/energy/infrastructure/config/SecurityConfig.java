@@ -25,13 +25,17 @@ import org.springframework.boot.actuate.info.InfoEndpoint;
 import org.springframework.boot.autoconfigure.security.servlet.PathRequest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 
+import static org.springframework.security.config.Customizer.withDefaults;
+
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity // Enable method-level security for @PreAuthorize
 public class SecurityConfig {
 
 		@Bean
@@ -39,14 +43,20 @@ public class SecurityConfig {
 			http
 					.headers(headers ->
 							headers
-									.contentSecurityPolicy(csp -> csp.policyDirectives("script-src 'self'; object-src 'none'"))
+									.frameOptions(withDefaults()) // Why: Default frame options are secure.
+									.contentSecurityPolicy(csp -> csp.policyDirectives(String.join("; ",
+											"script-src 'self' https://cdn.jsdelivr.net",
+											"style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+											"font-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com",
+											"object-src 'none'"
+									)))
 									.referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN))
 					)
 					.authorizeHttpRequests(authorizeRequests ->
 							authorizeRequests
 									// Why: Use PathRequest to safely match static resources and keep basic pages public without over-broad URL patterns
-									.requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll()
-									.requestMatchers("/login.html", "/license", "/terms", "/logout.html", "/", "/error", "/favicon.ico", "/robots.txt")
+									.requestMatchers(PathRequest.toStaticResources().atCommonLocations()).permitAll() // css, js, images
+									.requestMatchers("/login.html", "/license", "/terms", "/logout.html", "/", "/error", "/favicon.ico", "/robots.txt", "/weather/**")
 									.permitAll()
 									// Publicly accessible well-known endpoint for Tesla domain verification
 									// Why: Required by Tesla Fleet API for domain verification; must be publicly accessible.
@@ -63,7 +73,7 @@ public class SecurityConfig {
 					.oauth2Login(oauth2Login ->
 							oauth2Login
 									.loginPage("/login.html")
-									.defaultSuccessUrl("/user-profile")
+									.defaultSuccessUrl("/", true)
 					)
 					.logout(logout ->
 							logout

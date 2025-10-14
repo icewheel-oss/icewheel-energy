@@ -1,0 +1,212 @@
+Great idea. Here’s how to extend the design to support multiple weather providers, allow users to enter their own API keys/secrets via the UI, and use a resilient multi-provider strategy with quotas, caching, and fallbacks.
+
+Goals
+- Let each user connect one or more weather providers (free tiers welcome) via UI-managed API keys/secrets.
+- Normalize provider data to a common forecast model.
+- Use a provider-agnostic decision engine with caching and rate-limit awareness.
+- Fail over to the next provider automatically if one is down or out of quota.
+- Keep secrets secure (encryption at rest, masking, never log).
+
+Key components to add
+
+1) Data model (new entities)
+- WeatherProviderCredential
+  - id, userId, providerType (open-meteo, OPENWEATHER, TOMORROWIO, NOAA, METEOBLUE, etc.)
+  - apiKey, apiSecret (nullable; encrypted at rest)
+  - label (user-friendly name) and enabled flag
+  - createdAt, updatedAt
+- WeatherForecastCache (required, save in database, come up with clever approach to save WeatherForecastCache from different weather data providers)
+  - id, userId, siteId (or location key), providerType, lookaheadHours, validFrom/validTo
+  - summary metrics: avgCloudCover, precipProbabilityMax, hasSnow/Rain/Storm, providerConfidence
+  - rawPayload (JSON), hash, createdAt, ttl/expireAt
+- Per-user weather preference
+  - Default provider priority list
+  - Conservative vs normal forecasting mode
+  - Location override per energySite if not resolvable automatically
+
+2) UI/UX
+- Settings > Weather Providers
+  - Add Provider: dropdown of supported providers
+  - Fields: API key, API secret (if needed), label, enable/disable
+  - Validate credentials on save (probe a harmless endpoint)
+  - Mask secrets; allow rotate/revoke; show last successful call timestamp and call count (with date)
+- Schedule UI
+  - Toggle: Weather-aware charging
+  - Inputs: badWeatherChargePercent, thresholds (cloud cover, precip), lookahead hours, charge-only-during-off-peak
+  - Location: default from energy site; allow override
+  - Provider priority: optionally let users order providers (drag/drop) or accept sensible default
+
+3) Backend abstractions
+- WeatherClient (per provider implementation) and common DTOs:
+  - WeatherClient.fetchForecast(location, lookahead, siteZoneId) -> NormalizedForecast
+  - Each provider maps its schema to NormalizedForecast
+- WeatherProviderRegistry
+  - Lists installed providers and capabilities
+- WeatherClientFactory
+  - Given userId + siteId, returns a prioritized ProviderChain that:
+    - Filters enabled providers with valid credentials
+    - Orders by user preference, then provider health and recent errors/quota usage
+- ForecastCacheService
+  - Cache per user + site + time window; TTL 30–60 minutes
+  - Cache key includes provider and window; also allow “any provider” cache when normalized result is indistinguishable
+- WeatherForecastEvaluator
+  - Input: NormalizedForecast, thresholds, daylight window (site ZoneId)
+  - Output: GOOD | BAD | UNKNOWN + confidence + reason
+- Rate limiting and quotas
+  - ProviderCallLimiter with per-provider rules (local bucket + backoff on 429s)
+  - Uses per-user credential ID in the limit key to avoid cross-user interference
+
+4) Provider chain logic
+- Fetch path:
+  - Check cache; if fresh and within TTL, use it
+  - Otherwise iterate providers in priority order:
+    - If rate limit would be exceeded, skip to next
+    - Call provider, honor backoff if recent failures
+    - On success: normalize, store cache, return
+    - On failure: log reason (without secrets), move on
+  - If all fail, return UNKNOWN with fallback policy (e.g., treat as GOOD to avoid unnecessary charge unless user sets conservative mode)
+- Decision path (unchanged in spirit):
+  - If forecast=BAD and now is off-peak (or within upcoming off-peak start), set target SOC to max(userBackup, badWeatherChargePercent)
+  - Avoid oscillation with a per-window “already-set” flag
+
+5) Security and secret management
+- Encryption at rest for apiKey/apiSecret using JCE or a KMS (if available to the user)
+- Mask values in logs and responses; only last 4 chars visible if necessary
+- Never log raw requests with secrets; use separate safe logging fields
+- Add “Test connection” button in UI that hits a backend validation endpoint (returns only success/failure + message)
+- On rotation: keep old credential disabled for a controlled period if wanted, then purge
+
+6) Location handling
+- Default: derive lat/lon from energy site
+- Override: allow user to provide lat/lon or provider location ID (e.g., grid point or postal code) per site
+- Normalize internally to lat/lon, then map to provider formats in WeatherClient implementations
+
+7) Scheduling integration (recap with multi-provider)
+- Pre-off-peak job or continuous reconciliation uses WeatherClientFactory to obtain ProviderChain
+- Evaluate forecast result
+- If BAD and allowed to charge now, compute target SOC and set it via Tesla API
+- Cache the decision for the current off-peak window to avoid repeated updates
+- After off-peak ends, revert to normal schedule stewardship
+
+8) Example interfaces and DTOs
+
+```java
+public enum WeatherProviderType {
+    OPENMETEO,OPENWEATHER, TOMORROWIO, NOAA, METEOBLUE
+}
+
+public record Location(double latitude, double longitude) {}
+
+public record NormalizedForecast(
+    ZoneId zoneId,
+    Instant validFrom,
+    Instant validTo,
+    double avgCloudCoverPercent,
+    double maxPrecipProbabilityPercent,
+    boolean hasRain,
+    boolean hasSnow,
+    boolean hasStorm,
+    double providerConfidence, // 0..1
+    String providerName
+) {}
+
+public interface WeatherClient {
+    WeatherProviderType type();
+    NormalizedForecast fetchForecast(UUID userId, String siteId, Location location, int lookaheadHours, ZoneId zoneId) throws WeatherClientException;
+}
+
+public interface WeatherClientFactory {
+    ProviderChain forUserAndSite(UUID userId, String siteId);
+}
+
+public interface ProviderChain {
+    Optional<NormalizedForecast> getForecast(Location location, int lookaheadHours, ZoneId zoneId);
+}
+
+public record ForecastEvaluation(
+    boolean badWeather,
+    double confidence,
+    String reason
+) {}
+
+public interface WeatherForecastEvaluator {
+    ForecastEvaluation evaluate(NormalizedForecast forecast, ZoneId zoneId, LocalTime dayStart, LocalTime dayEnd,
+                                Integer cloudCoverThreshold, Integer precipThreshold, boolean conservativeMode);
+}
+
+public interface ForecastCacheService {
+    Optional<NormalizedForecast> get(UUID userId, String siteId, int lookaheadHours);
+    void put(UUID userId, String siteId, int lookaheadHours, NormalizedForecast forecast, Duration ttl);
+}
+```
+
+
+9) Provider implementations
+- OpenWeather
+  - One Call API for hourly/daily, map clouds (0–100), pop (0–1), weather codes
+- Tomorrow.io
+  - Timelines API for cloudCover, precipitationProbability, precipitationType, thunderstorm
+- NOAA (US)
+  - Gridpoints forecast; map to cloud cover/precipitation where available
+- Each client:
+  - Handles HTTP, retries with exponential backoff, maps to NormalizedForecast
+  - Emits a metrics tag like weather_api_calls{provider="OPENWEATHER"} and weather_api_failures{...}
+
+10) Caching and rate limiting
+- Cache TTL: 30–60 minutes; longer overnight if forecasts don’t change frequently
+-
+- Per provider per credential limiters keyed by userId+credentialId
+- Respect provider 429/402 (out of quota) by suspending that provider for a cool-down window (e.g., 15–60 minutes)
+
+11) Error handling and fallbacks
+- If all providers fail:
+  - If conservativeMode enabled: treat as BAD with lower confidence only if thresholds would likely be exceeded based on last-known cache
+  - Otherwise treat as GOOD and skip pre-charge
+- If partial data:
+  - Prefer a completed forecast; if not, compute with available fields and lower confidence
+
+12) Observability
+- Structured logs:
+  - provider, result, latency, cacheHit, rateLimited
+- Metrics:
+  - weather_forecast_requests{provider}
+  - weather_forecast_cache_hit{provider}
+  - weather_forecast_failures{provider,reason}
+  - weather_decision_bad/good{siteId}
+- Tracing: span around provider calls and decision logic
+
+13) Testing plan
+- Unit tests:
+  - Evaluator threshold edges
+  - ProviderChain fallback when 429/timeout
+  - Cache hit/miss and TTL behavior
+- Integration tests:
+  - Mock provider clients with various responses
+  - Credential validation endpoint
+  - Scheduler path that only sets SOC during off-peak and only when forecast=BAD
+- E2E manual:
+  - Configure two providers (one invalid, one valid)
+  - Verify fallback to valid
+  - Rotate keys and re-validate
+
+14) Configuration and secrets
+- application.yml
+  - Feature flag: weather.multiProvider.enabled=true
+  - Defaults: cache TTL, lookahead default, evaluator thresholds
+- Secrets:
+  - Store user API keys in DB encrypted with an app key (KMS or password-protected keystore)
+  - Never log secrets; redact at the controller/service layer
+
+15) Rollout
+- Phase 1: UI for adding providers + backend credential storage with validation
+- Phase 2: Single provider usage + cache
+- Phase 3: Provider chain with rate limiting and fallback
+- Phase 4: Advanced evaluator + per-site overrides and UI polish
+
+If you’d like, I can provide:
+- A minimal schema for WeatherProviderCredential and ForecastCache
+- Example Spring MVC controller and Thymeleaf form for adding provider keys
+- A ProviderChain implementation with OpenWeather + Tomorrow.io as a starting pair
+- Tests for the evaluator and provider fallback logic
+
+My name is AI Assistant.

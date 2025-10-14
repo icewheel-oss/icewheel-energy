@@ -39,17 +39,17 @@ import lombok.RequiredArgsConstructor;
 import net.icewheel.energy.api.rest.dto.ScheduleHistoryResponse;
 import net.icewheel.energy.api.rest.dto.ScheduleRequest;
 import net.icewheel.energy.api.rest.dto.ScheduleResponse;
-import net.icewheel.energy.domain.auth.model.User;
-import net.icewheel.energy.domain.energy.exception.ScheduleImportException;
-import net.icewheel.energy.domain.energy.exception.ScheduleNotFoundException;
-import net.icewheel.energy.domain.energy.model.PowerwallSchedule;
-import net.icewheel.energy.domain.energy.model.ReconciliationMode;
-import net.icewheel.energy.domain.energy.model.ScheduleAuditEvent;
-import net.icewheel.energy.domain.energy.model.ScheduleEventType;
-import net.icewheel.energy.domain.energy.model.ScheduleExecutionHistory;
-import net.icewheel.energy.infrastructure.repository.energy.PowerwallScheduleRepository;
-import net.icewheel.energy.infrastructure.repository.energy.ScheduleAuditEventRepository;
-import net.icewheel.energy.infrastructure.repository.energy.ScheduleExecutionHistoryRepository;
+import net.icewheel.energy.application.scheduling.exception.ScheduleImportException;
+import net.icewheel.energy.application.scheduling.exception.ScheduleNotFoundException;
+import net.icewheel.energy.application.scheduling.model.PowerwallSchedule;
+import net.icewheel.energy.application.scheduling.model.ReconciliationMode;
+import net.icewheel.energy.application.scheduling.model.ScheduleAuditEvent;
+import net.icewheel.energy.application.scheduling.model.ScheduleEventType;
+import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
+import net.icewheel.energy.application.scheduling.repository.PowerwallScheduleRepository;
+import net.icewheel.energy.application.scheduling.repository.ScheduleAuditEventRepository;
+import net.icewheel.energy.application.scheduling.repository.ScheduleExecutionHistoryRepository;
+import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.Product;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
 
@@ -77,19 +77,27 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 		return createSchedulePeriodInternal(request, user, "New schedule period created.");
     }
 
+    /**
+	 * {@inheritDoc}
+	 * <p>
+	 * This implementation ensures that updates submitted by a user always apply to the
+	 * permanent, base schedule, even if a temporary weather-based schedule is currently active.
+	 * It explicitly finds and modifies only the non-temporary entities within the schedule group.
+	 */
     @Override
     @Transactional
     public ScheduleResponse updateSchedulePeriod(UUID scheduleGroupId, ScheduleRequest request, User user) {
         List<PowerwallSchedule> schedules = findAndValidateSchedulesByGroup(scheduleGroupId, user);
+        // When updating, we ALWAYS update the permanent base schedule, not a temporary one.
         PowerwallSchedule startDischarge = schedules.stream()
-                .filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE)
+                .filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE && !s.isTemporary())
                 .findFirst()
-                .orElseThrow(() -> new ScheduleNotFoundException("Schedule group " + scheduleGroupId + " is malformed: missing a START_DISCHARGE event."));
+                .orElseThrow(() -> new ScheduleNotFoundException("Schedule group " + scheduleGroupId + " is malformed: missing a permanent START_DISCHARGE event."));
 
         PowerwallSchedule startCharge = schedules.stream()
-                .filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE)
+                .filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE && !s.isTemporary())
                 .findFirst()
-                .orElseThrow(() -> new ScheduleNotFoundException("Schedule group " + scheduleGroupId + " is malformed: missing a START_CHARGE event."));
+                .orElseThrow(() -> new ScheduleNotFoundException("Schedule group " + scheduleGroupId + " is malformed: missing a permanent START_CHARGE event."));
 
         // Capture a detailed log of what is about to change for the audit trail.
         Map<String, Object> auditDetails = buildUpdateAuditDetails(startDischarge, startCharge, request);
@@ -99,9 +107,11 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
         updateScheduleEvent(startCharge, request, request.getEndTime(), request.getOffPeakBackupPercent());
         logAuditEvent(user, scheduleGroupId, request.getName(), ScheduleAuditEvent.AuditAction.UPDATED, auditDetails);
 
-        // The changes will be saved automatically at the end of the transaction by JPA's dirty checking.
-        // We can return the response DTO mapped from the updated entities.
-        return mapGroupToResponse(schedules).orElseThrow();
+        // Why: Re-fetch the schedules from the database before mapping the response.
+        // This ensures the returned DTO reflects the truly persisted state, avoiding potential
+        // issues where the in-memory state of the entities might be stale within the transaction.
+        List<PowerwallSchedule> updatedSchedules = scheduleRepository.findAllByScheduleGroupId(scheduleGroupId);
+        return mapGroupToResponse(updatedSchedules).orElseThrow();
     }
 
     @Override
@@ -166,35 +176,38 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 
     @Override
     @Transactional(readOnly = true)
-	public Page<ScheduleHistoryResponse> getScheduleHistory(User user, Pageable pageable) {
-		// Why: The repository method is updated to accept a Pageable object,
-		// allowing the database to handle pagination and sorting efficiently.
-		// The Page.map function is then used to convert the entity Page to a DTO Page.
-		return auditEventRepository.findByUser(user, pageable)
-                .map(event -> new ScheduleHistoryResponse(
-                        event.getAction().name(),
-                        event.getTimestamp(),
-                        event.getScheduleName(),
-                        event.getDetails(), // Pass the raw Map<String, Object> to the DTO
-                        null // Lifecycle events don't have a success/failure status
-				));
+	public Page<ScheduleHistoryResponse> getScheduleHistory(User user, Pageable pageable, List<ScheduleAuditEvent.AuditAction> actions) {
+		Page<ScheduleAuditEvent> auditEventPage;
+		if (actions == null || actions.isEmpty()) {
+			auditEventPage = auditEventRepository.findByUser(user, pageable);
+		} else {
+			auditEventPage = auditEventRepository.findByUserAndActionIn(user, actions, pageable);
+		}
+		return auditEventPage.map(event -> new ScheduleHistoryResponse(
+				event.getAction().name(),
+				event.getTimestamp(),
+				event.getScheduleName(),
+				event.getDetails(),
+				null
+		));
     }
 
     @Override
     @Transactional(readOnly = true)
-	public Page<ScheduleHistoryResponse> getScheduleExecutionHistory(User user, Pageable pageable) {
-		// Why: The previous implementation was inefficient for large histories.
-		// By relying on the userId stored with each execution event, we can directly
-		// query the history repository with pagination, which is much more performant.
-		// This requires a `findByUserId(String userId, Pageable pageable)` method in the repository.
-		return historyRepository.findByUserId(user.getId(), pageable)
-				.map(event -> new ScheduleHistoryResponse(
-						formatExecutionTypeForDisplay(event.getExecutionType()),
-						event.getExecutionTime(),
-						event.getScheduleName(),
-						event.getDetails(),
-						event.getStatus()
-				));
+	public Page<ScheduleHistoryResponse> getScheduleExecutionHistory(User user, Pageable pageable, List<ScheduleExecutionHistory.ExecutionStatus> statuses) {
+		Page<ScheduleExecutionHistory> executionPage;
+		if (statuses == null || statuses.isEmpty()) {
+			executionPage = historyRepository.findByUserId(user.getId(), pageable);
+		} else {
+			executionPage = historyRepository.findByUserIdAndStatusIn(user.getId(), statuses, pageable);
+		}
+		return executionPage.map(event -> new ScheduleHistoryResponse(
+				formatExecutionTypeForDisplay(event.getExecutionType()),
+				event.getExecutionTime(),
+				event.getScheduleName(),
+				event.getDetails(),
+				event.getStatus()
+		));
     }
 
 	/**
@@ -208,6 +221,7 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 			case REGULAR -> "Scheduled Run";
 			case RECONCILIATION_CONTINUOUS -> "Continuous Correction";
 			case RECONCILIATION_STARTUP -> "Startup Correction";
+			case WEATHER_EVALUATION -> "Weather Evaluation";
 		};
 	}
 
@@ -296,6 +310,12 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 		return new ImportResult(schedulesToCreate.size(), skippedDuplicateNames, skippedDuplicateContent);
 	}
 
+	@Override
+	public boolean isForcedChargeActive(User user) {
+		// A forced charge is active if the manual override flag is set in the user's preferences.
+		return user.getPreference() != null && user.getPreference().isForcedChargingActive();
+	}
+
 	private ScheduleRequest mapResponseToRequest(ScheduleResponse response) {
 		// Why: This mapping is intentionally selective. It only includes schedule configuration
 		// and explicitly excludes any user-identifying information or environment-specific IDs (like energySiteId)
@@ -311,6 +331,7 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 		request.setOffPeakBackupPercent(response.getOffPeakBackupPercent());
 		request.setEnabled(response.isEnabled());
 		request.setReconciliationMode(response.getReconciliationMode());
+		request.setWeatherScalingFactor(response.getWeatherScalingFactor());
 		return request;
 	}
 
@@ -403,6 +424,8 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 		// to maintain existing behavior for clients that don't send the new flag.
 		schedule.setReconciliationMode(
 				request.getReconciliationMode() != null ? request.getReconciliationMode() : ReconciliationMode.CONTINUOUS);
+		schedule.setScheduleType(request.getScheduleType() != null ? request.getScheduleType() : net.icewheel.energy.application.scheduling.model.ScheduleType.BASIC);
+		schedule.setWeatherScalingFactor(request.getWeatherScalingFactor() != null ? request.getWeatherScalingFactor() : 70);
 	}
 
     private void logAuditEvent(User user, UUID scheduleGroupId, String scheduleName, ScheduleAuditEvent.AuditAction action, Map<String, Object> details) {
@@ -465,38 +488,91 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
         return schedules;
     }
 
+    /**
+	 * Maps a group of related {@link PowerwallSchedule} entities (representing a single logical
+	 * schedule period for the user) into a single {@link ScheduleResponse} DTO.
+	 * <p>
+	 * This method contains critical logic to handle temporary weather-based overrides:
+	 * <ol>
+	 *     <li><b>Time Window:</b> The on-peak/off-peak time window is always determined by the
+	 *     permanent, non-temporary schedules in the group.</li>
+	 *     <li><b>Effective Percentages:</b> The backup percentages displayed to the user are taken from
+	 *     the most relevant schedule, prioritizing temporary schedules if they exist.</li>
+	 *     <li><b>Permanent Percentages:</b> It also populates the permanent percentages, so the UI
+	 *     can show the user their base settings, especially during an override.</li>
+	 * </ol>
+	 *
+	 * @param group A list of all schedule entities belonging to the same schedule group ID.
+	 * @return An {@link Optional} containing the mapped response, or empty if the group is invalid.
+	 */
     private Optional<ScheduleResponse> mapGroupToResponse(List<PowerwallSchedule> group) {
-        if (group == null || group.size() < 2) {
-            return Optional.empty(); // A valid group must have at least a start and end event
+        if (group == null || group.isEmpty()) {
+            return Optional.empty();
         }
 
-        Optional<PowerwallSchedule> startDischargeOpt = group.stream().filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE).findFirst();
-        Optional<PowerwallSchedule> startChargeOpt = group.stream().filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE).findFirst();
+        // Why: This logic is now robust to handle temporary overrides. It separates the concepts of
+        // the schedule's time window (which is fixed) from the backup percentages (which can be temporarily overridden).
 
-        if (startDischargeOpt.isEmpty() || startChargeOpt.isEmpty()) {
-            return Optional.empty(); // Incomplete group
+        // 1. Find the permanent schedules to define the core properties and time window.
+        Optional<PowerwallSchedule> permanentStartDischargeOpt = group.stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE && !s.isTemporary())
+                .findFirst();
+        Optional<PowerwallSchedule> permanentStartChargeOpt = group.stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE && !s.isTemporary())
+                .findFirst();
+
+        // A valid permanent schedule must have both parts.
+        if (permanentStartDischargeOpt.isEmpty() || permanentStartChargeOpt.isEmpty()) {
+            // If there are only temporary schedules, we can't determine the base time window. This might happen
+            // during deletion or other transient states. It's safest to treat the group as invalid.
+            return Optional.empty();
         }
 
-        PowerwallSchedule startDischarge = startDischargeOpt.get();
-        PowerwallSchedule startCharge = startChargeOpt.get();
+        // 2. Find the effective schedules for backup percentages, prioritizing temporary ones.
+        PowerwallSchedule effectiveStartDischarge = group.stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE)
+                .sorted(Comparator.comparing(PowerwallSchedule::isTemporary).reversed()) // true comes first
+                .findFirst()
+                .orElse(permanentStartDischargeOpt.get()); // Fallback to permanent
 
+        PowerwallSchedule effectiveStartCharge = group.stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE)
+                .sorted(Comparator.comparing(PowerwallSchedule::isTemporary).reversed()) // true comes first
+                .findFirst()
+                .orElse(permanentStartChargeOpt.get()); // Fallback to permanent
+
+        PowerwallSchedule baseSchedule = permanentStartDischargeOpt.get();
+
+        // 3. Build the response DTO.
         ScheduleResponse response = new ScheduleResponse();
-        response.setScheduleGroupId(startDischarge.getScheduleGroupId());
-        response.setName(startDischarge.getName());
-        response.setDescription(startDischarge.getDescription());
-        response.setEnergySiteId(startDischarge.getEnergySiteId());
-        response.setDaysOfWeek(startDischarge.getDaysOfWeek());
-        response.setTimeZone(startDischarge.getTimeZone());
-        response.setEnabled(startDischarge.isEnabled());
-		response.setReconciliationMode(startDischarge.getReconciliationMode());
-        response.setCreatedAt(startDischarge.getCreatedAt());
-        response.setUpdatedAt(startDischarge.getUpdatedAt());
+        response.setScheduleGroupId(baseSchedule.getScheduleGroupId());
+        response.setName(baseSchedule.getName());
+        response.setDescription(baseSchedule.getDescription());
+        response.setEnergySiteId(baseSchedule.getEnergySiteId());
+        response.setDaysOfWeek(baseSchedule.getDaysOfWeek());
+        response.setTimeZone(baseSchedule.getTimeZone());
+        response.setEnabled(baseSchedule.isEnabled());
+        response.setReconciliationMode(baseSchedule.getReconciliationMode());
+        response.setScheduleType(baseSchedule.getScheduleType());
+        response.setLastEvaluationDetails(baseSchedule.getLastEvaluationDetails());
+        response.setWeatherScalingFactor(baseSchedule.getWeatherScalingFactor());
+        response.setCreatedAt(baseSchedule.getCreatedAt());
+        response.setUpdatedAt(baseSchedule.getUpdatedAt());
 
-        // Populate period-specific fields
-        response.setStartTime(startDischarge.getScheduledTime());
-        response.setEndTime(startCharge.getScheduledTime());
-        response.setOnPeakBackupPercent(startDischarge.getBackupPercent());
-        response.setOffPeakBackupPercent(startCharge.getBackupPercent());
+        // Time window is always from the permanent schedule.
+        response.setStartTime(permanentStartDischargeOpt.get().getScheduledTime());
+        response.setEndTime(permanentStartChargeOpt.get().getScheduledTime());
+
+        // Percentages are from the effective (potentially temporary) schedules.
+        response.setOnPeakBackupPercent(effectiveStartDischarge.getBackupPercent());
+        response.setOffPeakBackupPercent(effectiveStartCharge.getBackupPercent());
+
+        // Set permanent percentages for UI display and editing.
+        response.setPermanentOnPeakBackupPercent(permanentStartDischargeOpt.get().getBackupPercent());
+        response.setPermanentOffPeakBackupPercent(permanentStartChargeOpt.get().getBackupPercent());
+
+        // Finally, check if any of the effective schedules are temporary, indicating a weather override.
+        response.setOverriddenByWeather(effectiveStartDischarge.isTemporary() || effectiveStartCharge.isTemporary());
 
         return Optional.of(response);
     }

@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(pageTitle='Weather Details')}"></head>
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+<nav th:replace="~{fragments/header :: navbar(activePage='weather')}"></nav>
+
+<main class="container my-5 flex-grow-1">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <form id="zip-code-selection-form" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label for="favorite-zip-codes" class="form-label">Favorite Zip Codes</label>
+                    <select id="favorite-zip-codes" class="form-select">
+                        <option value="">Select a favorite...</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="new-zip-code-input" class="form-label">Or enter a new Zip Code</label>
+                    <input type="text" id="new-zip-code-input" class="form-control" placeholder="e.g., 90210">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary w-100">Get Weather</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div th:if="${errorMessage}" class="alert alert-danger" role="alert" th:utext="${errorMessage}"></div>
+
+    <div id="weather-data-container"
+         th:if="${rawHourlyForecastJson}"
+         th:attr="data-hourly-forecast-json=${rawHourlyForecastJson},
+                  data-daily-forecast-json=${rawDailyForecastJson},
+                  data-points-json=${rawPointsJson},
+                  data-raw-observation-json=${rawObservationJson},
+                  data-observation-stations-json=${rawObservationStationsJson},
+                  data-location-name=${locationName},
+                  data-location-time-zone=${locationTimeZone}">
+
+        <div class="row g-4">
+            <!-- Main Content Column -->
+            <div class="col-lg-8">
+                <!-- Live Observation Card -->
+                <h2 class="h4 mb-3">Live Observation (Nearest Station)</h2>
+                <div class="card mb-4" id="live-observation-card">
+                    <!-- Content will be injected by JavaScript -->
+                </div>
+
+                <h2 class="h4 mb-3">Current Forecast</h2>
+                <div class="card mb-4" id="current-weather-card">
+                    <!-- Content will be injected by JavaScript -->
+                    <div class="card-body text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hourly Forecast (Next 24 Hours) -->
+                <h2 class="h4 mb-3">Hourly Forecast (Next 24 Hours)</h2>
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <canvas id="hourly-chart-static"></canvas>
+                    </div>
+                </div>
+                <div class="row row-cols-2 row-cols-md-4 row-cols-lg-6 g-3 mb-5" id="hourly-forecast-details">
+                    <!-- Hourly detail cards will be injected by JavaScript -->
+                </div>
+            </div>
+
+            <!-- Sidebar Column -->
+            <div class="col-lg-4">
+                <!-- 7-Day Forecast -->
+                <h2 class="h4 mb-3">7-Day Forecast</h2>
+                <div class="card mb-4">
+                    <div class="card-body" id="daily-forecast-details">
+                        <!-- Daily forecast items will be injected by JavaScript -->
+                    </div>
+                </div>
+
+                <!-- Custom Hourly Forecast -->
+                <h2 class="h4 mb-3">Custom Hourly View</h2>
+                <div class="card mb-4">
+					<div class="card-body">
+						<div class="row g-3 align-items-end mb-3">
+							<div class="col-md-5">
+								<label for="date-picker" class="form-label">Date</label>
+								<input type="date" id="date-picker" class="form-control">
+							</div>
+							<div class="col-md-3">
+								<label for="start-time-select" class="form-label">Start Time</label>
+								<select id="start-time-select" class="form-select"></select>
+							</div>
+							<div class="col-md-4">
+								<label for="window-select" class="form-label">Time Window</label>
+								<select id="window-select" class="form-select">
+									<option value="6">6 Hours</option>
+									<option value="12">12 Hours</option>
+									<option value="24" selected>24 Hours</option>
+									<option value="48">48 Hours</option>
+								</select>
+							</div>
+						</div>
+
+						<!-- Tab Navigation -->
+						<ul class="nav nav-tabs" id="customViewTab" role="tablist">
+							<li class="nav-item" role="presentation">
+								<button class="nav-link active" id="chart-tab" data-bs-toggle="tab" data-bs-target="#chart-pane" type="button" role="tab" aria-controls="chart-pane" aria-selected="true">Chart</button>
+							</li>
+							<li class="nav-item" role="presentation">
+								<button class="nav-link" id="details-tab" data-bs-toggle="tab" data-bs-target="#details-pane" type="button" role="tab" aria-controls="details-pane" aria-selected="false">Details</button>
+							</li>
+						</ul>
+
+						<!-- Tab Content -->
+						<div class="tab-content" id="customViewTabContent">
+							<div class="tab-pane fade show active" id="chart-pane" role="tabpanel" aria-labelledby="chart-tab" tabindex="0">
+								<canvas id="hourly-chart-dynamic" class="mt-3"></canvas>
+							</div>
+							<div class="tab-pane fade" id="details-pane" role="tabpanel" aria-labelledby="details-tab" tabindex="0">
+								<div class="table-responsive mt-3" id="dynamic-hourly-details" style="max-height: 400px; overflow-y: auto;">
+									<!-- Detailed hourly data will be injected here by JavaScript -->
+								</div>
+							</div>
+						</div>
+					</div>
+                </div>
+
+                <!-- More Information -->
+                <h2 class="h4 mb-3">More Information</h2>
+                <div class="card">
+                    <div class="card-body" id="more-info-details">
+                        <div class="d-flex justify-content-center">
+                            <div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+
+<div th:replace="~{fragments/footer :: scripts}"></div>
+<script th:src="@{/js/weather-details.js}"></script>
+</body>
+</html>

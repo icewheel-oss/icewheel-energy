@@ -44,6 +44,7 @@ import net.icewheel.energy.infrastructure.vendors.tesla.dto.SiteInfoResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.TelemetryHistoryApiResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.TelemetryHistoryResponse;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -52,6 +53,9 @@ import org.springframework.web.client.RestClientException;
 @RequiredArgsConstructor
 @Slf4j
 public class TeslaEnergyServiceImpl implements TeslaEnergyService {
+
+	@Value("${app.tesla.api.mock-enabled:false}")
+	private boolean mockEnabled;
 
 	private final RestClient restClient;
 	private final TeslaApiConfig teslaApiConfig;
@@ -214,6 +218,10 @@ public class TeslaEnergyServiceImpl implements TeslaEnergyService {
 
 	@Override
 	public Boolean setBackupReserve(String userId, String siteId, int backupPercent) {
+		if (mockEnabled) {
+			log.info("[MOCK MODE] Skipping setBackupReserve call for site {}. Would have set backup to {}%.", siteId, backupPercent);
+			return true;
+		}
 		String accessToken;
 		try {
 			accessToken = tokenService.getValidAccessToken(userId);

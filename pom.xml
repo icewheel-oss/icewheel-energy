@@ -48,10 +48,26 @@
 	<properties>
 		<java.version>24</java.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>2025.0.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-aop</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -60,6 +76,11 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-oauth2-client</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.modelmapper</groupId>
+			<artifactId>modelmapper</artifactId>
+			<version>3.1.0</version>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -72,6 +93,10 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-hateoas</artifactId>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -136,34 +161,6 @@
 			<artifactId>nimbus-jose-jwt</artifactId>
 			<version>9.37.4</version>
 		</dependency>
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>bootstrap</artifactId>
-			<version>5.3.3</version>
-		</dependency>
-		<!-- WebJars for client-side dependencies -->
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>highlightjs</artifactId>
-			<version>11.11.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.webjars.npm</groupId>
-			<artifactId>bootstrap-icons</artifactId>
-			<version>1.13.1</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>bootstrap-datepicker</artifactId>
-			<version>1.10.0</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.webjars</groupId>
-			<artifactId>jquery</artifactId>
-			<version>3.7.1</version>
-		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.cronutils/cron-utils -->
 		<dependency>
 			<groupId>com.cronutils</groupId>
@@ -183,6 +180,15 @@
 			<groupId>net.javacrumbs.shedlock</groupId>
 			<artifactId>shedlock-provider-jdbc-template</artifactId>
 			<version>5.10.2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-vault-config</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.bucket4j</groupId>
+			<artifactId>bucket4j-core</artifactId>
+			<version>8.1.0</version>
 		</dependency>
 		<!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/mockwebserver -->
 		<dependency>
@@ -209,6 +215,37 @@
 			<version>0.11.5</version>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>io.swagger.core.v3</groupId>
+			<artifactId>swagger-annotations</artifactId>
+			<version>2.2.20</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-ui</artifactId>
+			<version>1.8.0</version>
+		</dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-cache</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+		<!-- https://mvnrepository.com/artifact/org.openapitools/jackson-databind-nullable -->
+		
+
+		<dependency>
+			<groupId>org.openapitools</groupId>
+			<artifactId>jackson-databind-nullable</artifactId>
+			<version>0.2.7</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<version>2.0.13</version>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -217,23 +254,25 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
 				<configuration>
-					<release>${java.version}</release>
+					<source>${java.version}</source>
+					<target>${java.version}</target>
 					<annotationProcessorPaths>
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
 						</path>
 					</annotationProcessorPaths>
-					<source>24</source>
-					<target>24</target>
 					<compilerArgs>--enable-preview</compilerArgs>
+					
 				</configuration>
 			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
 				<configuration>
+					<mainClass>net.icewheel.energy.IcewheelEnergyApplication</mainClass>
 					<image>
+						<!--suppress UnresolvedMavenProperty -->
 						<name>${docker.image.name}</name>
 					</image>
 					<!--					<environmentVariables>-->
@@ -259,11 +298,75 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<!-- Why: This plugin is configured to include both unit tests (ending in Test) and integration tests (ending in IT) in the build process. -->
 				<configuration>
+					<forkCount>1</forkCount>
+					<reuseForks>false</reuseForks>
 					<includes>
 						<include>**/*Test.java</include>
 						<include>**/*IT.java</include>
 					</includes>
 				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>7.14.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/specifications/nws-openapi.json</inputSpec>
+							<!-- Use the 'spring' generator for better integration with Spring Boot. -->
+							<generatorName>spring</generatorName>
+							<!-- We only want to generate the model classes (POJOs) from the specification, not the API client code. -->
+							<modelPackage>net.icewheel.energy.infrastructure.weather.nws.gen.model</modelPackage>
+							<generateApis>false</generateApis>
+							<generateApiTests>false</generateApiTests>
+							<generateModelTests>false</generateModelTests>
+							<generateSupportingFiles>false</generateSupportingFiles>
+							<configOptions>
+								<!-- Ensures compatibility with Spring Boot 3+ by using jakarta.* packages. -->
+								<useSpringBoot3>true</useSpringBoot3>
+								<dateLibrary>java8</dateLibrary>
+								<openApiNullable>false</openApiNullable>
+								<useBeanValidation>true</useBeanValidation>
+								<useOneOfInterfaces>true</useOneOfInterfaces>
+							</configOptions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+            <plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>3.6.0</version>
+				<executions>
+					<execution>
+						<id>add-source</id>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-sources/openapi/src/main/java</source>
+							</sources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>add-test-source</id>
+						<phase>generate-test-sources</phase>
+						<goals>
+							<goal>add-test-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>${project.build.directory}/generated-sources/openapi/src/test/java</source>
+							</sources>
+						</configuration>
+					</execution>
+				</executions>
 			</plugin>
 		</plugins>
 	</build>
