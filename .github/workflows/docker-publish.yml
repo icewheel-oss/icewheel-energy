@@ -33,11 +33,17 @@ jobs:
       with:
         images: ghcr.io/${{ github.repository }}
         tags: |
-          type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+          # Tag 'latest' only on the default branch (main)
+          type=raw,value=latest,enable={{is_default_branch}}
+          # Tag 'beta' when building from the beta branch
           type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
+          # Also tag with the branch name (e.g., 'main', 'beta')
+          type=ref,event=branch
+          # Tag semver versions when building from tags like v1.2.3
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
           type=semver,pattern={{major}}
+          # Always include a short SHA tag
           type=sha,format=short
 
     # Build the JAR once to be used by both image builds.
@@ -54,7 +60,16 @@ jobs:
 
     # This command now uses the JAR built in the "Build JAR" step, making it much faster.
     # We also name the image directly to avoid a separate 'docker tag' command.
-    - name: Build and push amd64 image
+    - name: Build and push image
+      env:
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        META_TAGS: ${{ steps.meta.outputs.tags }}
       run: |
-        TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr '\n' ',')
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }} -Dspring-boot.build-image.tags=${TAGS} -Dspring-boot.build-image.publish=true
+        if [ "$GITHUB_REF" = "refs/heads/beta" ]; then
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:beta"
+        else
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}"
+        fi
+        TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.publish=true
