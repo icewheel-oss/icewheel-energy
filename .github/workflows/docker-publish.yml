@@ -33,11 +33,17 @@ jobs:
       with:
         images: ghcr.io/${{ github.repository }}
         tags: |
+          # Tag 'latest' only on the default branch (main)
           type=raw,value=latest,enable={{is_default_branch}}
+          # Tag 'beta' when building from the beta branch
+          type=raw,value=beta,enable=${{ github.ref == 'refs/heads/beta' }}
+          # Also tag with the branch name (e.g., 'main', 'beta')
           type=ref,event=branch
+          # Tag semver versions when building from tags like v1.2.3
           type=semver,pattern={{version}}
           type=semver,pattern={{major}}.{{minor}}
           type=semver,pattern={{major}}
+          # Always include a short SHA tag
           type=sha,format=short
 
     # Build the JAR once to be used by both image builds.
