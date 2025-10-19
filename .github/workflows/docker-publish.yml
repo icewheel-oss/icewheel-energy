@@ -60,7 +60,16 @@ jobs:
 
     # This command now uses the JAR built in the "Build JAR" step, making it much faster.
     # We also name the image directly to avoid a separate 'docker tag' command.
-    - name: Build and push amd64 image
+    - name: Build and push image
+      env:
+        GITHUB_REF: ${{ github.ref }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        META_TAGS: ${{ steps.meta.outputs.tags }}
       run: |
-        TAGS=$(echo "${{ steps.meta.outputs.tags }}" | tr '\n' ',')
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=ghcr.io/${{ github.repository }} -Dspring-boot.build-image.tags=${TAGS} -Dspring-boot.build-image.publish=true
+        if [ "$GITHUB_REF" = "refs/heads/beta" ]; then
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:beta"
+        else
+          IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}"
+        fi
+        TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.publish=true
