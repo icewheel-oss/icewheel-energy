@@ -23,8 +23,8 @@ import java.util.List;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.icewheel.energy.domain.auth.model.User;
-import net.icewheel.energy.infrastructure.repository.auth.UserRepository;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.application.user.repository.UserRepository;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 
@@ -32,9 +32,19 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * A scheduled task to proactively refresh expiring Tesla API tokens.
- * This helps to ensure that tokens remain valid for API calls made by the application.
- * NOTE: Ensure you add `@EnableScheduling` to your main application class to activate this scheduler.
+ * A scheduled task that proactively refreshes expiring Tesla API tokens for all users.
+ * <p>
+ * This scheduler runs periodically to ensure that API tokens remain valid for all services
+ * that interact with the Tesla API. It iterates through all registered users and triggers
+ * a token refresh if a user's token is nearing its expiration, based on a pre-configured
+ * threshold.
+ * <p>
+ * The actual refresh logic, including the threshold check, is handled by the {@link TokenService}.
+ * This class is simply the scheduled trigger for that process.
+ *
+ * NOTE: Ensure you add {@code @EnableScheduling} to your main application class to activate this scheduler.
+ *
+ * @see TokenService
  */
 @Component
 @RequiredArgsConstructor

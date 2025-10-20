@@ -26,7 +26,7 @@
     - page: The Page object from Spring Data.
     - url: The base URL for the pagination links.
 -->
-<div th:fragment="pagination(page, url)" th:if="${page.totalPages > 1}"
+            <div th:fragment="pagination(page, url, statuses, actions)" th:if="${page.totalPages > 1}"
      class="d-flex justify-content-between align-items-center mt-4">
     <span class="text-muted small">
         Page <strong th:text="${page.number + 1}">1</strong> of <strong th:text="${page.totalPages}">1</strong>
@@ -35,13 +35,13 @@
     <nav aria-label="Page navigation">
         <ul class="pagination mb-0">
             <li class="page-item" th:classappend="${page.first} ? 'disabled'">
-                <a class="page-link" th:href="@{${url}(page=${page.number - 1}, size=${page.size})}">
+                <a class="page-link" th:href="@{${url}(page=${page.number - 1}, size=${page.size}, status=${statuses}, action=${actions})}">
                     <i class="bi bi-chevron-left"></i>
                     <span class="d-none d-sm-inline">Previous</span>
                 </a>
             </li>
             <li class="page-item" th:classappend="${page.last} ? 'disabled'">
-                <a class="page-link" th:href="@{${url}(page=${page.number + 1}, size=${page.size})}">
+                <a class="page-link" th:href="@{${url}(page=${page.number + 1}, size=${page.size}, status=${statuses}, action=${actions})}">
                     <span class="d-none d-sm-inline">Next</span>
                     <i class="bi bi-chevron-right"></i>
                 </a>

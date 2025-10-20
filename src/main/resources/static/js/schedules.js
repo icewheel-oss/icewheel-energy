@@ -67,6 +67,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const scheduleNameToDeleteEl = document.getElementById('schedule-name-to-delete');
     const confirmDeleteBtn = document.getElementById('confirm-delete-btn');
 
+    const scheduleTypeSelect = document.getElementById('scheduleType');
+    const weatherAwareFields = document.getElementById('weather-aware-fields');
+    const weatherAwareOptions = document.getElementById('weather-aware-options');
+    const weatherScalingFactorSlider = document.getElementById('weatherScalingFactor');
+    const weatherScalingFactorInput = document.getElementById('weatherScalingFactorInput');
+    const sunshinePercentageSlider = document.getElementById('sunshinePercentage');
+    const sunshinePercentageInput = document.getElementById('sunshinePercentageInput');
+    const simulatedSunshineEl = document.getElementById('simulatedSunshine');
+    const predictedChargeTargetEl = document.getElementById('predictedChargeTarget');
+
+    scheduleTypeSelect.addEventListener('change', function () {
+        const isWeatherAware = this.value === 'WEATHER_AWARE';
+        weatherAwareFields.classList.toggle('d-none', !isWeatherAware);
+        weatherAwareOptions.classList.toggle('d-none', !isWeatherAware);
+        if (isWeatherAware) {
+            updatePrediction();
+        }
+    });
+
     
     const csrfToken = document.querySelector('meta[name="_csrf"]').getAttribute('content');
     const csrfHeader = document.querySelector('meta[name="_csrf_header"]').getAttribute('content');
@@ -225,13 +244,31 @@ document.addEventListener('DOMContentLoaded', () => {
         const cardEl = cardFragment.querySelector('.col');
 
         // Populate card fields
-        cardEl.querySelector('[data-field="name"]').textContent = schedule.name;
+                const nameEl = cardEl.querySelector('[data-field="name"]');
+        // Add a visual indicator for the schedule type
+        if (schedule.scheduleType === 'WEATHER_AWARE') {
+            nameEl.innerHTML = `<i class="bi bi-cloud-sun-fill me-2 text-primary" title="Weather-Aware Schedule"></i> ${escapeHtml(schedule.name)}`;
+        } else {
+            nameEl.innerHTML = `<i class="bi bi-clock-history me-2 text-secondary" title="Basic Time-Based Schedule"></i> ${escapeHtml(schedule.name)}`;
+        }
         cardEl.querySelector('[data-field="description"]').textContent = schedule.description || 'No description';
         cardEl.querySelector('[data-field="time"]').textContent = `${formatTime(schedule.startTime)} - ${formatTime(schedule.endTime)}`;
         const days = schedule.daysOfWeek || [];
         cardEl.querySelector('[data-field="days"]').textContent = days.map(d => d.substring(0, 3)).join(', ');
-        cardEl.querySelector('[data-field="percent"]').textContent = `${schedule.onPeakBackupPercent}%`;
-        cardEl.querySelector('[data-field="offPeakPercent"]').textContent = `${schedule.offPeakBackupPercent}%`;
+        const onPeakEl = cardEl.querySelector('[data-field="percent"]');
+        const offPeakEl = cardEl.querySelector('[data-field="offPeakPercent"]');
+
+        onPeakEl.textContent = `${schedule.onPeakBackupPercent}%`;
+        offPeakEl.textContent = `${schedule.offPeakBackupPercent}%`;
+
+        if (schedule.overriddenByWeather) {
+            if (schedule.onPeakBackupPercent !== schedule.permanentOnPeakBackupPercent) {
+                onPeakEl.innerHTML += ` <small class="text-muted">(Normally ${schedule.permanentOnPeakBackupPercent}%)</small>`;
+            }
+            if (schedule.offPeakBackupPercent !== schedule.permanentOffPeakBackupPercent) {
+                offPeakEl.innerHTML += ` <small class="text-muted">(Normally ${schedule.permanentOffPeakBackupPercent}%)</small>`;
+            }
+        }
         const siteName = document.querySelector(`#energySiteId option[value="${schedule.energySiteId}"]`)?.textContent;
         cardEl.querySelector('[data-field="siteName"]').textContent = siteName || `Site ID: ${schedule.energySiteId}`;
 
@@ -250,6 +287,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     batteryLevelEl.classList.add('text-danger');
                 }
+            }
+        }
+
+        // Add weather override indicator
+        if (schedule.overriddenByWeather) {
+            const backupTitleEl = cardEl.querySelector('[data-field="backup-title"]');
+            if (backupTitleEl) {
+                backupTitleEl.innerHTML += ' <i class="bi bi-cloud-sun-fill text-primary" title="Temporarily adjusted by weather forecast"></i>';
             }
         }
 
@@ -299,7 +344,9 @@ document.addEventListener('DOMContentLoaded', () => {
             timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, // Use browser's timezone
             onPeakBackupPercent: parseInt(onPeakInput.value, 10),
             offPeakBackupPercent: parseInt(offPeakInput.value, 10),
-            reconciliationMode: document.querySelector('input[name="reconciliationMode"]:checked').value
+            reconciliationMode: document.querySelector('input[name="reconciliationMode"]:checked').value,
+            scheduleType: scheduleTypeSelect.value,
+            weatherScalingFactor: parseInt(weatherScalingFactorInput.value, 10)
         };
 
         if (method === 'POST') {
@@ -363,12 +410,12 @@ document.addEventListener('DOMContentLoaded', () => {
         endMinuteSelect.value = end.minute;
         endAmPmSelect.value = end.ampm;
 
-        const onPeakPercent = schedule.onPeakBackupPercent || 20;
+        const onPeakPercent = schedule.permanentOnPeakBackupPercent || 20;
         onPeakSlider.value = onPeakPercent;
         onPeakInput.value = onPeakPercent;
         updateWarnings('onPeak', onPeakPercent);
 
-        const offPeakPercent = schedule.offPeakBackupPercent || 80;
+        const offPeakPercent = schedule.permanentOffPeakBackupPercent || 80;
         offPeakSlider.value = offPeakPercent;
         offPeakInput.value = offPeakPercent;
         updateWarnings('offPeak', offPeakPercent);
@@ -380,6 +427,20 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         document.querySelector(`input[name="reconciliationMode"][value="${schedule.reconciliationMode}"]`).checked = true;
+
+        // Handle weather-aware fields
+        const scheduleType = schedule.scheduleType || 'BASIC';
+        scheduleTypeSelect.value = scheduleType;
+        const isWeatherAware = scheduleType === 'WEATHER_AWARE';
+        weatherAwareFields.classList.toggle('d-none', !isWeatherAware);
+        weatherAwareOptions.classList.toggle('d-none', !isWeatherAware);
+
+        if (isWeatherAware) {
+            const scalingFactor = schedule.weatherScalingFactor !== null ? schedule.weatherScalingFactor : 100;
+            weatherScalingFactorSlider.value = scalingFactor;
+            weatherScalingFactorInput.value = scalingFactor;
+            updatePrediction();
+        }
 
         scheduleModal.show();
     };
@@ -478,6 +539,8 @@ document.addEventListener('DOMContentLoaded', () => {
         endMinuteSelect.value = '00';
         endAmPmSelect.value = 'PM';
         document.getElementById('modeContinuous').checked = true;
+        scheduleTypeSelect.value = 'BASIC';
+        weatherAwareFields.classList.add('d-none');
     };
 
     // --- Initialization ---
@@ -492,12 +555,12 @@ document.addEventListener('DOMContentLoaded', () => {
             startHourSelect.add(new Option(hour, hour));
             endHourSelect.add(new Option(hour, hour));
         }
-        // Populate minutes
-        for (let i = 0; i < 60; i++) {
-            const minute = i.toString().padStart(2, '0');
+        // Populate minutes with 15-minute intervals for a cleaner UI
+        const minuteIntervals = ['00', '15', '30', '45'];
+        minuteIntervals.forEach(minute => {
             startMinuteSelect.add(new Option(minute, minute));
             endMinuteSelect.add(new Option(minute, minute));
-        }
+        });
         // Populate AM/PM
         startAmPmSelect.add(new Option('AM', 'AM'));
         startAmPmSelect.add(new Option('PM', 'PM'));
@@ -541,6 +604,24 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    const updatePrediction = () => {
+        const baseBackupPercent = parseInt(offPeakInput.value, 10);
+        const scalingFactor = parseInt(weatherScalingFactorInput.value, 10);
+        const sunshinePercentage = parseInt(sunshinePercentageInput.value, 10);
+
+        const solarShortfall = 100 - sunshinePercentage;
+        const adjustment = (solarShortfall / 100.0) * (100.0 - baseBackupPercent) * (scalingFactor / 100.0);
+        const adjustedChargeTarget = baseBackupPercent + adjustment;
+        const finalChargeTarget = Math.min(90, Math.round(adjustedChargeTarget));
+
+        predictedChargeTargetEl.textContent = `${finalChargeTarget}%`;
+    };
+
+    const syncWeatherInputs = (source, target) => {
+        target.value = source.value;
+        updatePrediction();
+    };
+
     const syncBackupInputs = (source, target, type) => {
         target.value = source.value;
         updateWarnings(type, source.value);
@@ -553,6 +634,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     offPeakSlider.addEventListener('input', () => syncBackupInputs(offPeakSlider, offPeakInput, 'offPeak'));
     offPeakInput.addEventListener('input', () => syncBackupInputs(offPeakInput, offPeakSlider, 'offPeak'));
+
+    // Listeners for weather simulation
+    weatherScalingFactorSlider.addEventListener('input', () => syncWeatherInputs(weatherScalingFactorSlider, weatherScalingFactorInput));
+    weatherScalingFactorInput.addEventListener('input', () => syncWeatherInputs(weatherScalingFactorInput, weatherScalingFactorSlider));
+    sunshinePercentageSlider.addEventListener('input', () => {
+        syncWeatherInputs(sunshinePercentageSlider, sunshinePercentageInput);
+        simulatedSunshineEl.textContent = `${sunshinePercentageSlider.value}%`;
+    });
+    sunshinePercentageInput.addEventListener('input', () => {
+        syncWeatherInputs(sunshinePercentageInput, sunshinePercentageSlider);
+        simulatedSunshineEl.textContent = `${sunshinePercentageInput.value}%`;
+    });
+
+    offPeakSlider.addEventListener('input', updatePrediction);
+    offPeakInput.addEventListener('input', updatePrediction);
 
     // Add listener for the final delete confirmation button
     confirmDeleteBtn.addEventListener('click', executeDelete);

@@ -1,3 +1,5 @@
+server:
+  port: 8081
 spring:
   application:
     name: icewheel-energy
@@ -24,7 +26,6 @@ spring:
     driver-class-name: org.h2.Driver
     username: sa
     password: ''
-  
   # JPA Configuration
   jpa:
     database-platform: org.hibernate.dialect.H2Dialect
@@ -70,8 +71,21 @@ spring:
     virtual:
       enabled: true
 # Server Configuration
-server:
-  port: 8081
+management:
+  server:
+    port: 9091
+  endpoints:
+    web:
+          exposure:
+            include: health,info,metrics
+  endpoint:
+    health:
+          show-details: when_authorized
+
+features:
+  weather-aware-scheduler:
+    enabled: false
+
   servlet:
     context-path: /
     session:
@@ -90,8 +104,7 @@ tesla:
   audience: ${TESLA_AUDIENCE:https://fleet-api.prd.na.vn.cloud.tesla.com}
   locale: ${TESLA_LOCALE:en-US}
   scope: ${TESLA_SCOPE:openid user_data vehicle_device_data vehicle_cmds vehicle_charging_cmds energy_device_data energy_cmds offline_access}
-  domain: ${APP_DOMAIN:localhost}
-  redirect-uri: ${app.protocol}://${tesla.domain}:${server.port}/api/tesla/fleet/auth/callback
+  redirect-uri: ${app.protocol}://${app.domain}:${server.port}/api/tesla/fleet/auth/callback
   auth-url: https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/authorize
   token-url: https://fleet-auth.prd.vn.cloud.tesla.com/oauth2/v3/token
   api-base-url: ${tesla.audience}
@@ -101,13 +114,35 @@ tesla:
 
 # Application Configuration
 app:
+  domain: ${APP_DOMAIN:localhost}
   protocol: ${APP_PROTOCOL:http} # Use 'https' in production by setting the APP_PROTOCOL environment variable
   token-refresh:
     cron: "0 0 */1 * * *"  # Run every hour
     threshold-seconds: 3600  # Refresh tokens with less than 1 hour remaining
+  weather:
+    cache-enabled: true
+    cache:
+      expiration-hours: 0
+    zip-to-lat-lon:
+      enabled: false
+    zip-code-rate-limit:
+      capacity: 50
+      refill-tokens: 50
+      refill-duration-minutes: 1440 # 1 day
+    nws:
+      user-agent: "(MyWeatherApp, contact@myweatherapp.com)"
+      daily-quota: 1000
+
+  cloud:
+    vault:
+      enabled: false
 
 # Logging Configuration
 logging:
+  # Why: Configures file-based logging to persist logs across application runs,
+  # which is useful for debugging and auditing.
+  file:
+    path: ./logs/app # Logs will be written to a 'spring.log' file in the 'logs' directory.
   level:
     root: INFO
     org.springframework.web: INFO
@@ -115,14 +150,6 @@ logging:
     org.springframework.security.oauth2: INFO
 
 # Actuator Configuration
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: when_authorized
 
 ---
 spring:
@@ -144,6 +171,9 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
+  cloud:
+    vault:
+      enabled: false
 
 ---
 spring:

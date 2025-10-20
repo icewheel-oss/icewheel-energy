@@ -26,17 +26,9 @@
     <nav th:replace="~{fragments/header :: navbar(activePage='energy-flow-animated')}"></nav>
 
     <main class="container my-5 flex-grow-1">
-        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
-            <i class="bi bi-stars display-3 text-primary"></i>
-            <h1 class="display-5 fw-bold mt-3">Unlock Your Home's Energy Potential</h1>
-            <p class="col-lg-8 mx-auto fs-5 text-muted">
-                Connect your Tesla account to see a real-time animation of your energy flow.
-            </p>
-            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
-                <i class="bi bi-plug-fill me-2"></i>
-                Securely Connect to Tesla
-            </a>
-        </div>
+        <th:block th:if="${!teslaConnected}">
+            <div th:replace="~{fragments/tesla-connect :: tesla-connect-prompt}"></div>
+        </th:block>
 
         <div th:if="${teslaConnected}">
             <div class="d-flex justify-content-between align-items-center mb-4">

@@ -26,7 +26,9 @@ import java.util.UUID;
 import net.icewheel.energy.api.rest.dto.ScheduleHistoryResponse;
 import net.icewheel.energy.api.rest.dto.ScheduleRequest;
 import net.icewheel.energy.api.rest.dto.ScheduleResponse;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.scheduling.model.ScheduleAuditEvent;
+import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
+import net.icewheel.energy.application.user.model.User;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -92,7 +94,7 @@ public interface PowerwallScheduleService {
 	 * @param pageable Pagination information.
 	 * @return A paginated list of schedule history response objects.
 	 */
-	Page<ScheduleHistoryResponse> getScheduleHistory(User user, Pageable pageable);
+	Page<ScheduleHistoryResponse> getScheduleHistory(User user, Pageable pageable, List<ScheduleAuditEvent.AuditAction> actions);
 
 	/**
 	 * Retrieves a history of when schedules were actually executed or skipped by the system.
@@ -101,7 +103,7 @@ public interface PowerwallScheduleService {
 	 * @param pageable Pagination information.
 	 * @return A paginated list of schedule history response objects detailing executions.
 	 */
-	Page<ScheduleHistoryResponse> getScheduleExecutionHistory(User user, Pageable pageable);
+	Page<ScheduleHistoryResponse> getScheduleExecutionHistory(User user, Pageable pageable, List<ScheduleExecutionHistory.ExecutionStatus> statuses);
 
 	/**
 	 * Enables or disables an energy schedule period. When disabled, the schedule will not run.
@@ -129,4 +131,14 @@ public interface PowerwallScheduleService {
 	 * @param user The user for whom the schedules will be created.
 	 */
 	ImportResult importSchedules(List<ScheduleRequest> schedules, User user);
+
+	/**
+	 * Checks if a forced charge is currently active for the given user.
+	 * A forced charge can be active either through a temporary "FORCED_CHARGE" schedule
+	 * or via a manual override setting in the user's preferences.
+	 *
+	 * @param user The user to check.
+	 * @return true if forced charging is active, false otherwise.
+	 */
+	boolean isForcedChargeActive(User user);
 }

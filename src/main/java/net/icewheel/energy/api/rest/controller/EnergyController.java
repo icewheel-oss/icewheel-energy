@@ -28,9 +28,9 @@ import java.util.List;
 import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaUserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
-import net.icewheel.energy.infrastructure.vendors.tesla.auth.UserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.ChargeHistoryResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.EnergyHistoryResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.LiveStatusResponse;
@@ -42,6 +42,7 @@ import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyServ
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
@@ -59,6 +60,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 @Controller
 @RequestMapping("/")
 @RequiredArgsConstructor
+@PreAuthorize("isAuthenticated()")
 public class EnergyController {
 
     /**
@@ -72,7 +74,7 @@ public class EnergyController {
     }
 
     private final TeslaEnergyService teslaEnergyService;
-    private final UserService userService;
+    private final TeslaUserService teslaUserService;
     private final TokenService tokenService;
 
     /**
@@ -136,7 +138,7 @@ public class EnergyController {
      */
     @GetMapping("/energy-flow-animated")
     public String energyFlowAnimated(Model model, @AuthenticationPrincipal OAuth2User oauth2User) {
-        User user = userService.findOrCreateUser(oauth2User);
+        User user = teslaUserService.findOrCreateUser(oauth2User);
 		boolean isTeslaConnected = tokenService.isUserConnected(user);
         model.addAttribute("teslaConnected", isTeslaConnected);
 
@@ -158,7 +160,7 @@ public class EnergyController {
      */
     @GetMapping("/energy-flow")
     public String energyFlow(Model model, @AuthenticationPrincipal OAuth2User oauth2User) {
-        User user = userService.findOrCreateUser(oauth2User);
+        User user = teslaUserService.findOrCreateUser(oauth2User);
 		boolean isTeslaConnected = tokenService.isUserConnected(user);
         model.addAttribute("teslaConnected", isTeslaConnected);
 
@@ -199,7 +201,7 @@ public class EnergyController {
 	 */
 	@GetMapping("/sites/{siteId}")
 	public String siteDetails(@PathVariable String siteId, Model model, @AuthenticationPrincipal OAuth2User oauth2User) {
-		User user = userService.findOrCreateUser(oauth2User);
+		User user = teslaUserService.findOrCreateUser(oauth2User);
 
 		// Why: Consolidating all UI model attributes here makes this the single source of truth for this page.
 		model.addAttribute("userName", user.getName());
@@ -256,7 +258,7 @@ public class EnergyController {
 			Model model,
 			@AuthenticationPrincipal OAuth2User oauth2User) {
 
-		User user = userService.findOrCreateUser(oauth2User);
+		User user = teslaUserService.findOrCreateUser(oauth2User);
 		boolean isTeslaConnected = tokenService.isUserConnected(user);
 		model.addAttribute("teslaConnected", isTeslaConnected);
 		model.addAttribute("siteId", siteId);
@@ -298,7 +300,7 @@ public class EnergyController {
 			Model model,
 			@AuthenticationPrincipal OAuth2User oauth2User) {
 
-		User user = userService.findOrCreateUser(oauth2User);
+		User user = teslaUserService.findOrCreateUser(oauth2User);
 		boolean isTeslaConnected = tokenService.isUserConnected(user);
 		model.addAttribute("teslaConnected", isTeslaConnected);
 		model.addAttribute("siteId", siteId);
@@ -337,7 +339,7 @@ public class EnergyController {
 			Model model,
 			@AuthenticationPrincipal OAuth2User oauth2User) {
 
-		User user = userService.findOrCreateUser(oauth2User);
+		User user = teslaUserService.findOrCreateUser(oauth2User);
 		boolean isTeslaConnected = tokenService.isUserConnected(user);
 		model.addAttribute("teslaConnected", isTeslaConnected);
 		model.addAttribute("siteId", siteId);

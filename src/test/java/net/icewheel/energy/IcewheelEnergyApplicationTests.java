@@ -29,7 +29,14 @@ import org.springframework.test.context.TestPropertySource;
 		"spring.datasource.url=jdbc:h2:mem:testdb_keypair;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DEFAULT_NULL_ORDERING=HIGH",
 		"spring.sql.init.mode=always",
 		"spring.jpa.hibernate.ddl-auto=create-drop",
-		"spring.sql.init.schema-locations=classpath:schema.sql"
+		"spring.sql.init.schema-locations=classpath:schema.sql",
+		"app.weather.zip-code-rate-limit.capacity=100",
+		"app.weather.zip-code-rate-limit.refill-tokens=100",
+		"app.weather.zip-code-rate-limit.refill-duration-minutes=1",
+		"app.token-refresh.cron=0 0 0 * * ?",
+		"spring.cloud.vault.enabled=false",
+		"spring.security.oauth2.client.registration.google.client-id=test-client-id",
+		"spring.security.oauth2.client.registration.google.client-secret=test-client-secret"
 })
 class IcewheelEnergyApplicationTests {
 

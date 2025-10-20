@@ -24,7 +24,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 import jakarta.persistence.LockModeType;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.Token;
 
 import org.springframework.data.domain.Pageable;

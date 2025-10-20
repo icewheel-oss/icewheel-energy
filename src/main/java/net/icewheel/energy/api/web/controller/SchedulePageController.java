@@ -19,13 +19,19 @@
 
 package net.icewheel.energy.api.web.controller;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.application.scheduling.PowerwallScheduleService;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.scheduling.model.ScheduleAuditEvent;
+import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaUserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
-import net.icewheel.energy.infrastructure.vendors.tesla.auth.UserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
+import net.icewheel.energy.infrastructure.modules.weather.WeatherService;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -45,40 +51,51 @@ import org.springframework.web.server.ResponseStatusException;
 public class SchedulePageController {
 
     private final PowerwallScheduleService scheduleService;
-    private final UserService userService;
-	private final TokenService tokenService;
-	private final TeslaEnergyService teslaEnergyService;
-
-    @GetMapping("/schedules")
-    public String getSchedulesPage(Model model, @AuthenticationPrincipal OAuth2User principal) {
-        User user = userService.findOrCreateUser(principal);
-		if (!tokenService.isUserConnected(user)) {
-			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tesla account not connected");
-		}
-        try {
-			// Why: Use a more specific and efficient method to fetch only the products
-			// that are relevant for scheduling (i.e., batteries). This prevents junk data
-			// (like deactivated sites or non-battery products) from appearing in the UI
-			// and improves page load performance by avoiding unnecessary API calls.
-			model.addAttribute("products", teslaEnergyService.getSchedulableEnergySites(user.getId()));
-        } catch (Exception e) {
-			log.error("Could not fetch services products for user {}. The dropdown will be empty.", user.getId(), e);
-        }
-        model.addAttribute("activePage", "schedules");
-        return "schedules";
-    }
-
+    private final TeslaUserService teslaUserService;
+	    private final TokenService tokenService;
+	    private final TeslaEnergyService teslaEnergyService;
+	    private final WeatherService weatherService;
+	
+	    @GetMapping("/schedules")
+	    public String getSchedulesPage(Model model, @AuthenticationPrincipal OAuth2User principal) {
+	        User user = teslaUserService.findOrCreateUser(principal);
+	        boolean isTeslaConnected = tokenService.isUserConnected(user);
+	        model.addAttribute("teslaConnected", isTeslaConnected);
+	
+	        if (isTeslaConnected) {
+	            try {
+	                model.addAttribute("products", teslaEnergyService.getSchedulableEnergySites(user.getId()));
+	            } catch (Exception e) {
+	                log.error("Could not fetch services products for user {}. The dropdown will be empty.", user.getId(), e);
+	            }
+	        }
+	                model.addAttribute("activePage", "schedules");
+	                // Check if a weather provider is available for the user's location.
+	                // This is used to conditionally render weather-aware UI components.
+	                model.addAttribute("isWeatherProviderAvailable", weatherService.isWeatherProviderAvailable(user));	        return "schedules";
+	    }
     @GetMapping("/schedules/history")
 	public String getScheduleHistoryPage(Model model, @AuthenticationPrincipal OAuth2User principal,
 			@RequestParam(name = "page", defaultValue = "0") int page,
-			@RequestParam(name = "size", defaultValue = "20") int size) {
-        User user = userService.findOrCreateUser(principal);
+			@RequestParam(name = "size", defaultValue = "20") int size,
+			@RequestParam(required = false) List<String> action) {
+        User user = teslaUserService.findOrCreateUser(principal);
 		if (!tokenService.isUserConnected(user)) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tesla account not connected");
 		}
-		// Why: Use pagination to handle potentially large history logs efficiently, improving performance and user experience.
+
+		List<ScheduleAuditEvent.AuditAction> actions = null;
+		if (action != null && !action.isEmpty()) {
+			actions = action.stream()
+					.map(ScheduleAuditEvent.AuditAction::valueOf)
+					.collect(Collectors.toList());
+		}
+
 		Pageable pageable = PageRequest.of(page, size, Sort.by("timestamp").descending());
-		model.addAttribute("historyPage", scheduleService.getScheduleHistory(user, pageable));
+		model.addAttribute("historyPage", scheduleService.getScheduleHistory(user, pageable, actions));
+		model.addAttribute("allActions", ScheduleAuditEvent.AuditAction.values());
+		model.addAttribute("selectedActions", action != null ? action : List.of());
+
         model.addAttribute("activePage", "schedules");
         return "schedule-history";
     }
@@ -86,15 +103,25 @@ public class SchedulePageController {
     @GetMapping("/schedules/executions")
 	public String getScheduleExecutionHistoryPage(Model model, @AuthenticationPrincipal OAuth2User principal,
 			@RequestParam(name = "page", defaultValue = "0") int page,
-			@RequestParam(name = "size", defaultValue = "20") int size) {
-        User user = userService.findOrCreateUser(principal);
+			@RequestParam(name = "size", defaultValue = "20") int size,
+			@RequestParam(required = false) List<String> status) {
+        User user = teslaUserService.findOrCreateUser(principal);
 		if (!tokenService.isUserConnected(user)) {
 			throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Tesla account not connected");
 		}
-		// Why: Use pagination to handle potentially large execution logs efficiently, improving performance and user experience.
-		// The service layer must be updated to accept a Pageable object.
+
+		List<ScheduleExecutionHistory.ExecutionStatus> statuses = null;
+		if (status != null && !status.isEmpty()) {
+			statuses = status.stream()
+					.map(ScheduleExecutionHistory.ExecutionStatus::valueOf)
+					.collect(Collectors.toList());
+		}
+
 		Pageable pageable = PageRequest.of(page, size, Sort.by("executionTime").descending());
-		model.addAttribute("executionPage", scheduleService.getScheduleExecutionHistory(user, pageable));
+		model.addAttribute("executionPage", scheduleService.getScheduleExecutionHistory(user, pageable, statuses));
+		model.addAttribute("allStatuses", ScheduleExecutionHistory.ExecutionStatus.values());
+		model.addAttribute("selectedStatuses", status != null ? status : List.of());
+
         model.addAttribute("activePage", "schedules");
         return "schedule-execution-history";
     }
