@@ -80,5 +80,18 @@ jobs:
           # Fallback (not expected with current triggers): use short SHA as default tag.
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA::7}"
         fi
+        # Derive OCI metadata to ensure different digests per ref (avoid beta and latest sharing digest)
+        if [[ "$GITHUB_REF" == refs/heads/* ]]; then
+          REF_KIND="branch"
+          REF_NAME="${GITHUB_REF#refs/heads/}"
+        elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          REF_KIND="tag"
+          REF_NAME="${GITHUB_REF#refs/tags/}"
+        else
+          REF_KIND="other"
+          REF_NAME="$GITHUB_REF"
+        fi
+        SHORT_SHA="${GITHUB_SHA::7}"
+        OCI_VERSION="${REF_KIND}-${REF_NAME}-${SHORT_SHA}"
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.publish=true
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.publish=true
