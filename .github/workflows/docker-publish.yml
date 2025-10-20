@@ -5,6 +5,7 @@ on:
     branches: [ "main", "beta" ] # Trigger on pushes to the main and beta branches
     tags:
       - 'v*' # Also trigger on version tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -100,5 +101,12 @@ jobs:
         # Extra safety: ensure 'latest' is never included in tags when not on main
         if [ "$GITHUB_REF" != "refs/heads/main" ]; then
           TAGS=$(echo "$TAGS" | sed 's/\(^\|,\)latest\(,\|$\)/,/g' | sed 's/^,//; s/,$//; s/,,/,/g')
+          # Always add a unique CI tag on non-main to force GHCR package update
+          UNIQUE_TAG="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}"
+          if [ -n "$TAGS" ]; then
+            TAGS="$TAGS,$UNIQUE_TAG"
+          else
+            TAGS="$UNIQUE_TAG"
+          fi
         fi
         mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.environment.BP_OCI_SOURCE=$OCI_SOURCE -Dspring-boot.build-image.environment.BP_IMAGE_LABELS="$IMAGE_LABELS" -Dspring-boot.build-image.publish=true
