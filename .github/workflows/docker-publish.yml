@@ -109,4 +109,23 @@ jobs:
             TAGS="$UNIQUE_TAG"
           fi
         fi
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.environment.BP_OCI_SOURCE=$OCI_SOURCE -Dspring-boot.build-image.environment.BP_IMAGE_LABELS="$IMAGE_LABELS" -Dspring-boot.build-image.publish=true
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.environment.BP_OCI_SOURCE=$OCI_SOURCE -Dspring-boot.build-image.environment.BP_IMAGE_LABELS="$IMAGE_LABELS" -Dspring-boot.build-image.publish=false
+        # Push the default tag and all additional tags explicitly so GHCR shows the new push
+        if [[ "$IMAGE_NAME" != *:* ]]; then
+          DEFAULT_TAG="latest"
+        else
+          DEFAULT_TAG="${IMAGE_NAME##*:}"
+        fi
+        echo "Resolved IMAGE_NAME=$IMAGE_NAME"
+        echo "Resolved DEFAULT_TAG=$DEFAULT_TAG"
+        echo "Resolved TAGS=$TAGS"
+        echo "Pushing default image: $IMAGE_NAME"
+        docker push "$IMAGE_NAME"
+        IFS=',' read -ra TAG_ARR <<< "$TAGS"
+        for T in "${TAG_ARR[@]}"; do
+          if [ -z "$T" ]; then continue; fi
+          if [ "$T" = "$DEFAULT_TAG" ]; then continue; fi
+          echo "Tagging and pushing additional tag: $T"
+          docker tag "$IMAGE_NAME" "ghcr.io/${GITHUB_REPOSITORY}:$T"
+          docker push "ghcr.io/${GITHUB_REPOSITORY}:$T"
+        done
