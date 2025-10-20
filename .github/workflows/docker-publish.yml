@@ -5,6 +5,7 @@ on:
     branches: [ "main", "beta" ] # Trigger on pushes to the main and beta branches
     tags:
       - 'v*' # Also trigger on version tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:
 
 jobs:
   build:
@@ -77,8 +78,64 @@ jobs:
           REF_TAG="${GITHUB_REF#refs/tags/}"
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:$REF_TAG"
         else
-          # Fallback (not expected with current triggers): use short SHA as default tag
+          # Fallback (not expected with current triggers): use short SHA as default tag.
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA::7}"
         fi
+        # Derive OCI metadata to ensure different digests per ref (avoid beta and latest sharing digest)
+        if [[ "$GITHUB_REF" == refs/heads/* ]]; then
+          REF_KIND="branch"
+          REF_NAME="${GITHUB_REF#refs/heads/}"
+        elif [[ "$GITHUB_REF" == refs/tags/* ]]; then
+          REF_KIND="tag"
+          REF_NAME="${GITHUB_REF#refs/tags/}"
+        else
+          REF_KIND="other"
+          REF_NAME="$GITHUB_REF"
+        fi
+        SHORT_SHA="${GITHUB_SHA::7}"
+        OCI_VERSION="${REF_KIND}-${REF_NAME}-${SHORT_SHA}"
+        OCI_SOURCE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}@${GITHUB_REF}"
+        CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        # Compute a human-friendly description for GHCR
+        if [ "$REF_KIND" = "branch" ] && [ "$REF_NAME" = "main" ]; then
+          DESCRIPTION="Icewheel Energy - production image built from main (${SHORT_SHA})"
+        elif [ "$REF_KIND" = "branch" ] && [ "$REF_NAME" = "beta" ]; then
+          DESCRIPTION="Icewheel Energy - beta image built from beta (${SHORT_SHA})"
+        elif [ "$REF_KIND" = "tag" ]; then
+          DESCRIPTION="Icewheel Energy - release image built from tag ${REF_NAME}"
+        else
+          DESCRIPTION="Icewheel Energy image built from ${REF_KIND}/${REF_NAME} (${SHORT_SHA})"
+        fi
+        IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA},org.opencontainers.image.created=${CREATED},org.opencontainers.image.description=${DESCRIPTION}"
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.publish=true
+        # Extra safety: ensure 'latest' is never included in tags when not on main
+        if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+          TAGS=$(echo "$TAGS" | sed 's/\(^\|,\)latest\(,\|$\)/,/g' | sed 's/^,//; s/,$//; s/,,/,/g')
+          # Always add a unique CI tag on non-main to force GHCR package update
+          UNIQUE_TAG="ci-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}"
+          if [ -n "$TAGS" ]; then
+            TAGS="$TAGS,$UNIQUE_TAG"
+          else
+            TAGS="$UNIQUE_TAG"
+          fi
+        fi
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.environment.BP_OCI_SOURCE=$OCI_SOURCE -Dspring-boot.build-image.environment.BP_IMAGE_LABELS="$IMAGE_LABELS" -Dspring-boot.build-image.publish=false
+        # Push the default tag and all additional tags explicitly so GHCR shows the new push
+        if [[ "$IMAGE_NAME" != *:* ]]; then
+          DEFAULT_TAG="latest"
+        else
+          DEFAULT_TAG="${IMAGE_NAME##*:}"
+        fi
+        echo "Resolved IMAGE_NAME=$IMAGE_NAME"
+        echo "Resolved DEFAULT_TAG=$DEFAULT_TAG"
+        echo "Resolved TAGS=$TAGS"
+        echo "Pushing default image: $IMAGE_NAME"
+        docker push "$IMAGE_NAME"
+        IFS=',' read -ra TAG_ARR <<< "$TAGS"
+        for T in "${TAG_ARR[@]}"; do
+          if [ -z "$T" ]; then continue; fi
+          if [ "$T" = "$DEFAULT_TAG" ]; then continue; fi
+          echo "Tagging and pushing additional tag: $T"
+          docker tag "$IMAGE_NAME" "ghcr.io/${GITHUB_REPOSITORY}:$T"
+          docker push "ghcr.io/${GITHUB_REPOSITORY}:$T"
+        done
