@@ -93,5 +93,7 @@ jobs:
         fi
         SHORT_SHA="${GITHUB_SHA::7}"
         OCI_VERSION="${REF_KIND}-${REF_NAME}-${SHORT_SHA}"
+        OCI_SOURCE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}@${GITHUB_REF}"
+        IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA}"
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
-        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.publish=true
+        mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.environment.BP_OCI_SOURCE=$OCI_SOURCE -Dspring-boot.build-image.environment.BP_IMAGE_LABELS="$IMAGE_LABELS" -Dspring-boot.build-image.publish=true
