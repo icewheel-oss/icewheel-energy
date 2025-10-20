@@ -77,7 +77,7 @@ jobs:
           REF_TAG="${GITHUB_REF#refs/tags/}"
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:$REF_TAG"
         else
-          # Fallback (not expected with current triggers): use short SHA as default tag
+          # Fallback (not expected with current triggers): use short SHA as default tag.
           IMAGE_NAME="ghcr.io/${GITHUB_REPOSITORY}:${GITHUB_SHA::7}"
         fi
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
