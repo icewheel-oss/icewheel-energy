@@ -94,7 +94,8 @@ jobs:
         SHORT_SHA="${GITHUB_SHA::7}"
         OCI_VERSION="${REF_KIND}-${REF_NAME}-${SHORT_SHA}"
         OCI_SOURCE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}@${GITHUB_REF}"
-        IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA}"
+        CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA},org.opencontainers.image.created=${CREATED}"
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
         # Extra safety: ensure 'latest' is never included in tags when not on main
         if [ "$GITHUB_REF" != "refs/heads/main" ]; then
