@@ -24,6 +24,9 @@ import java.util.List;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * Represents the result of an import operation.
+ */
 @Getter
 @RequiredArgsConstructor
 public class ImportResult {
