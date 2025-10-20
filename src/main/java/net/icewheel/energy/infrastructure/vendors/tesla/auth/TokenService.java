@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 import net.icewheel.energy.api.web.viewmodel.TokenDetailView;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.Token;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TokenResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.UserMeResponse;

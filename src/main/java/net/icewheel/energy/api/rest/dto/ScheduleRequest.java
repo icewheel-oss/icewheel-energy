@@ -32,7 +32,8 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-import net.icewheel.energy.domain.energy.model.ReconciliationMode;
+import net.icewheel.energy.application.scheduling.model.ReconciliationMode;
+import net.icewheel.energy.application.scheduling.model.ScheduleType;
 
 @Data
 public class ScheduleRequest {
@@ -77,5 +78,14 @@ public class ScheduleRequest {
 
 	@NotNull
 	private Boolean enabled;
+
+	private ScheduleType scheduleType;
+
+	/**
+	 * The user-configurable percentage (0-100) for weather-aware charging aggressiveness.
+	 */
+	@Min(value = 0, message = "Weather scaling factor must be at least 0.")
+	@Max(value = 100, message = "Weather scaling factor cannot exceed 100.")
+	private Integer weatherScalingFactor;
 
 }

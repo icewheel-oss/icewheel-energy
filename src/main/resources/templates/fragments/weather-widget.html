@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<body>
+    <div th:fragment="weather_widget" th:if="${weatherWidget != null}">
+        <a th:if="${weatherWidget.temperature != null}" href="/weather" class="nav-link text-light d-flex align-items-center me-2">
+            <i class="bi bi-cloud-sun me-2"></i>
+            <span th:text="${weatherWidget.temperature} + '°F'"></span>
+            <span class="ms-2 text-nowrap" style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;" th:text="${weatherWidget.description}"></span>
+        </a>
+        <a th:if="${weatherWidget.temperature == null}" href="/user-profile" class="nav-link text-light d-flex align-items-center me-2">
+            <i class="bi bi-geo-alt-fill me-2"></i>
+            <span th:text="${weatherWidget.description}"></span>
+        </a>
+    </div>
+</body>
+</html>

@@ -93,17 +93,9 @@
         </div>
 
         <!-- Case 1: Tesla account is NOT connected -->
-        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
-            <i class="bi bi-stars display-3 text-primary"></i>
-            <h1 class="display-5 fw-bold mt-3">Unlock Your Home's Energy Potential</h1>
-            <p class="col-lg-8 mx-auto fs-5 text-muted">
-                Connect your Tesla account to automate your energy usage, maximize savings, and gain full control over your Powerwall and solar systems.
-            </p>
-            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
-                <i class="bi bi-plug-fill me-2"></i>
-                Securely Connect to Tesla
-            </a>
-        </div>
+        <th:block th:if="${!teslaConnected}">
+            <div th:replace="~{fragments/tesla-connect :: tesla-connect-prompt}"></div>
+        </th:block>
 
         <!-- Case 2: No token found -->
         <div th:if="${teslaConnected and tokenDetails.isEmpty()}" class="text-center p-5 bg-body-tertiary rounded-3">
@@ -124,7 +116,7 @@
                 <h2 class="accordion-header" th:id="'heading' + ${iter.index}">
                     <button class="accordion-button" th:classappend="${iter.index != 0} ? 'collapsed'" type="button" data-bs-toggle="collapse" th:data-bs-target="'#collapse' + ${iter.index}" th:aria-expanded="${iter.index == 0}" th:aria-controls="'collapse' + ${iter.index}">
                         <div class="d-flex w-100 justify-content-between align-items-center pe-2">
-                            <span class="h6 mb-0">                                Token created on <span class="fw-normal local-datetime" th:attr="data-timestamp=${detail.token.createdAt.getEpochSecond()}" th:text="${dateTimeUtil.formatInstant(detail.token.createdAt, timezone)}"></span>
+                            <span class="h6 mb-0">                                Token created on <span class="fw-normal local-datetime" th:attr="data-timestamp=${detail.token.createdAt.getEpochSecond()}" th:text="${dateTimeUtil.formatInstant(detail.token.createdAt, userTimezone)}"></span>
                             </span>
                             <div>
                                 <!-- The newest token is active; older unexpired tokens are superseded. -->
@@ -204,7 +196,14 @@
                                                 <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">Superseded</span>
                                                 <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
                                             </th:block>
-                                            <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.expiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.expiration, timezone)}"></span>
+                                            <!-- 
+                                              Why: The 'userTimezone' attribute is used here to format the timestamps.
+                                              This attribute is globally available in the model thanks to the
+                                              GlobalModelAttributeAdvice class. It provides the user's preferred
+                                              timezone or a fallback, ensuring that timestamps are always displayed
+                                              in a consistent and user-friendly way.
+                                            -->
+                                            <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.expiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.expiration, userTimezone)}"></span>
                                         </div>
                                     </li>
                                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
@@ -218,7 +217,7 @@
                                             <th:block th:if="${iter.index != 0}">
                                                 <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">Superseded</span>
                                             </th:block>
-                                            <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.refreshTokenExpiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.refreshTokenExpiration, timezone)}"></span>
+                                            <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.refreshTokenExpiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.refreshTokenExpiration, userTimezone)}"></span>
                                         </div>
                                     </li>
                                     <li class="list-group-item px-0">
@@ -247,7 +246,7 @@
                                             <tr th:each="claim : ${detail.accessTokenClaims}">
                                                 <td class="font-monospace fs-sm" th:text="${claim.key}"></td>
                                                 <td>
-                                                    <span th:if="${#lists.contains({'exp', 'iat', 'nbf'}, claim.key)}" class="fs-sm local-datetime" th:attr="data-timestamp=${claim.value}" th:text="${dateTimeUtil.formatTimestamp(claim.value, timezone)}"></span>
+                                                    <span th:if="${#lists.contains({'exp', 'iat', 'nbf'}, claim.key)}" class="fs-sm local-datetime" th:attr="data-timestamp=${claim.value}" th:text="${dateTimeUtil.formatTimestamp(claim.value, userTimezone)}"></span>
                                                     <code th:unless="${#lists.contains({'exp', 'iat', 'nbf'}, claim.key)}" class="text-break fs-sm" th:text="${claim.value}"></code>
                                                 </td>
                                             </tr>

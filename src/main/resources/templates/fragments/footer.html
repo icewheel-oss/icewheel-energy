@@ -43,8 +43,13 @@
 
      <!-- Centralized script includes for all pages. -->
      <div th:fragment="scripts">
-         <script th:src="@{/webjars/bootstrap/5.3.3/js/bootstrap.bundle.min.js}"></script>
+         <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
          <script th:src="@{/js/theme-switcher.js}"></script>
+         <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" integrity="sha256-1G2Xof0CLF+yn6L0Xry8MiAtc67r8HbOX3JI9UmPx9c=" crossorigin="anonymous"></script>
+         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js" integrity="sha256-nP25Pzivzy0Har7NZtMr/TODzfGWdlTrwmomYF2vQXM=" crossorigin="anonymous"></script>
+         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/utc.js" integrity="sha256-qDfIIxqpRhYWa543p6AHZ323xT3B8O6iLZFUAWtEQJw=" crossorigin="anonymous"></script>
+         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/timezone.js" integrity="sha256-sth8gkYO5RiWuB4qxSATlfIFRQiA7ZHescg21ZoN1h0=" crossorigin="anonymous"></script>
+         <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/customParseFormat.js" integrity="sha256-y3Ion3BpCyciZ6B0FALNw/QJmuQMg0oTy2Cln5n9wJE=" crossorigin="anonymous"></script>
          <script th:src="@{/js/app.js}"></script>
          <script th:src="@{/js/energy-flow.js}"></script>
 

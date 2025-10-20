@@ -33,17 +33,9 @@
 <main class="container my-5 flex-grow-1">
 
     <!-- Case 1: Tesla account is NOT connected -->
-    <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
-        <i class="bi bi-stars display-3 text-primary"></i>
-        <h1 class="display-5 fw-bold mt-3">Connect Your Account to Use Schedules</h1>
-        <p class="col-lg-8 mx-auto fs-5 text-muted">
-            To create and manage automation schedules for your Powerwall, you first need to securely connect your Tesla account.
-        </p>
-        <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
-            <i class="bi bi-plug-fill me-2"></i>
-            Securely Connect to Tesla
-        </a>
-    </div>
+    <th:block th:if="${!teslaConnected}">
+        <div th:replace="~{fragments/tesla-connect :: tesla-connect-prompt}"></div>
+    </th:block>
 
     <!-- Case 2: Tesla account IS connected -->
     <div th:if="${teslaConnected}">
@@ -81,6 +73,10 @@
                 </div>
             </div>
             <hr class="my-4">
+        </div>
+
+        <div id="weather-forecast-container" class="mb-4" th:if="${isWeatherProviderAvailable}">
+            <!-- Weather forecast will be injected here -->
         </div>
 
         <!-- This container will be dynamically populated by schedules.js -->
@@ -137,7 +133,7 @@
                     <i class="bi bi-battery-charging fs-4 me-3"></i>
                     <div class="w-100">
                         <div class="d-flex justify-content-between">
-                            <span>Backup Reserve</span>
+                            <span data-field="backup-title">Backup Reserve</span>
                             <span><strong data-field="percent">20%</strong> (On-Peak) / <strong data-field="offPeakPercent">80%</strong> (Off-Peak)</span>
                         </div>
                         <div class="small text-muted d-flex justify-content-between">
@@ -190,6 +186,55 @@
                     <div class="mb-3">
                         <label for="description" class="form-label">Description (Optional)</label>
                         <textarea class="form-control" id="description" rows="2" placeholder="e.g., Charge battery during off-peak hours"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="scheduleType" class="form-label">Schedule Type</label>
+                        <select class="form-select" id="scheduleType" required>
+                            <option value="BASIC" selected>Basic</option>
+                            <option value="WEATHER_AWARE" th:if="${isWeatherProviderAvailable}">Weather-Aware</option>
+                        </select>
+                    </div>
+
+                    <div id="weather-aware-fields" class="alert alert-info d-none" role="alert">
+                        <i class="bi bi-info-circle-fill me-2"></i>
+                        Weather-Aware mode will automatically adjust charging based on the solar forecast. No extra configuration is needed.
+                    </div>
+
+                    <div id="weather-aware-options" class="card mb-3 d-none">
+                        <div class="card-body">
+                            <h6 class="card-title">Weather-Aware Configuration & Simulation</h6>
+                            <p class="card-text small text-muted">Adjust how aggressively to charge and simulate the results.</p>
+                            <hr>
+                            <div class="row g-4">
+                                <div class="col-lg-6">
+                                    <div class="mb-3">
+                                        <label for="weatherScalingFactor" class="form-label fw-bold">Adjustment Aggressiveness</label>
+                                        <input type="range" class="form-range" id="weatherScalingFactor" min="0" max="100" step="10" value="70">
+                                        <div class="input-group mt-2 mx-auto" style="width: 120px;">
+                                            <input type="number" class="form-control" id="weatherScalingFactorInput" min="0" max="100" value="70">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <div class="form-text small text-center">Controls how much to overcharge.</div>
+                                    </div>
+                                </div>
+                                <div class="col-lg-6">
+                                     <div class="mb-3">
+                                        <label for="sunshinePercentage" class="form-label fw-bold">Simulate Sunshine Forecast</label>
+                                        <input type="range" class="form-range" id="sunshinePercentage" min="0" max="100" step="5" value="80">
+                                        <div class="input-group mt-2 mx-auto" style="width: 120px;">
+                                            <input type="number" class="form-control" id="sunshinePercentageInput" min="0" max="100" value="80">
+                                            <span class="input-group-text">%</span>
+                                        </div>
+                                        <div class="form-text small text-center">Simulate the predicted sunshine.</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="text-center mt-3 p-3 bg-light rounded">
+                                <p class="mb-1">Predicted Charge Target:</p>
+                                <h3 class="fw-bold" id="predictedChargeTarget">...</h3>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="row">
@@ -274,6 +319,8 @@
                             </label>
                         </div>
                     </div>
+
+
                 </form>
             </div>
             <div class="modal-footer">
@@ -334,5 +381,6 @@
 <script id="products-data" type="application/json" th:inline="javascript">/*[[${products}]]*/</script>
 <!-- Page-specific JavaScript -->
 <script th:src="@{/js/schedules.js}"></script>
+<script th:src="@{/js/weather.js}"></script>
 </body>
 </html>

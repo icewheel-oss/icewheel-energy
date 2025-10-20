@@ -23,7 +23,7 @@ import java.time.Instant;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
-import net.icewheel.energy.domain.energy.model.ScheduleExecutionHistory;
+import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
 
 @Data
 @AllArgsConstructor
