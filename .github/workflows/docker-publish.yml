@@ -96,7 +96,17 @@ jobs:
         OCI_VERSION="${REF_KIND}-${REF_NAME}-${SHORT_SHA}"
         OCI_SOURCE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}@${GITHUB_REF}"
         CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-        IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA},org.opencontainers.image.created=${CREATED}"
+        # Compute a human-friendly description for GHCR
+        if [ "$REF_KIND" = "branch" ] && [ "$REF_NAME" = "main" ]; then
+          DESCRIPTION="Icewheel Energy - production image built from main (${SHORT_SHA})"
+        elif [ "$REF_KIND" = "branch" ] && [ "$REF_NAME" = "beta" ]; then
+          DESCRIPTION="Icewheel Energy - beta image built from beta (${SHORT_SHA})"
+        elif [ "$REF_KIND" = "tag" ]; then
+          DESCRIPTION="Icewheel Energy - release image built from tag ${REF_NAME}"
+        else
+          DESCRIPTION="Icewheel Energy image built from ${REF_KIND}/${REF_NAME} (${SHORT_SHA})"
+        fi
+        IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA},org.opencontainers.image.created=${CREATED},org.opencontainers.image.description=${DESCRIPTION}"
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
         # Extra safety: ensure 'latest' is never included in tags when not on main
         if [ "$GITHUB_REF" != "refs/heads/main" ]; then
