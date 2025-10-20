@@ -96,4 +96,8 @@ jobs:
         OCI_SOURCE="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}@${GITHUB_REF}"
         IMAGE_LABELS="net.icewheel.channel=${REF_KIND}-${REF_NAME},org.opencontainers.image.revision=${GITHUB_SHA}"
         TAGS=$(echo "$META_TAGS" | awk -F: '{print $NF}' | sed '/^$/d' | sort -u | tr '\n' ',' | sed 's/,$//')
+        # Extra safety: ensure 'latest' is never included in tags when not on main
+        if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+          TAGS=$(echo "$TAGS" | sed 's/\(^\|,\)latest\(,\|$\)/,/g' | sed 's/^,//; s/,$//; s/,,/,/g')
+        fi
         mvn spring-boot:build-image -Dspring-boot.build-image.imageName=$IMAGE_NAME -Dspring-boot.build-image.tags=$TAGS -Dspring-boot.build-image.environment.BP_OCI_VERSION=$OCI_VERSION -Dspring-boot.build-image.environment.BP_OCI_SOURCE=$OCI_SOURCE -Dspring-boot.build-image.environment.BP_IMAGE_LABELS="$IMAGE_LABELS" -Dspring-boot.build-image.publish=true
