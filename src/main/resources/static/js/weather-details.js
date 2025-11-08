@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         if (zipCode) {
-            window.location.href = `/weather?zipCode=${zipCode}&t=${new Date().getTime()}`;
+            window.location.href = `/weather?zipCode=${encodeURIComponent(zipCode)}&t=${new Date().getTime()}`;
         }
     });
 
