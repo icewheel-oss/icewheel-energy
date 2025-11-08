@@ -57,7 +57,7 @@
     <script src="https://cdn.jsdelivr.net/npm/dayjs/plugin/timezone.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs/plugin/customParseFormat.js"></script>
     <script th:src="@{/js/weather-widget.js}"></script>
-    <script th:src="@{/js/weather-alerts.js}"></script>
+    <script th:src="@{/js/weather-alerts.js}" sec:authorize="isAuthenticated()"></script>
 </head>
 
 <body>
