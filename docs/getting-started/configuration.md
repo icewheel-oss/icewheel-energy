@@ -160,3 +160,18 @@ To use PostgreSQL, you need to activate the `postgres` Spring profile.
 | `DB_NAME`            | `datasource.url`       | The name of the database.                 | `icewheel-energy` |
 | `DB_USER`            | `datasource.username`  | The username for the PostgreSQL database. | `postgres`        |
 | `DB_PASSWORD`        | `datasource.password`  | The password for the PostgreSQL database. | `example`         |
+
+## Logging
+
+By default, the application logs to the console (`stdout`), which is the standard for containerized deployments.
+
+### Local File Logging
+
+For local development, you may want logs to be written to a file. You can enable this by activating the `local` Spring profile.
+
+When the `local` profile is active, logs will be written to `./logs/app/spring.log`.
+
+To activate this profile in your IDE:
+1. Go to your `Run/Debug Configuration` for the application.
+2. Find the **Active profiles** field.
+3. Enter `local`. If you are also using a local PostgreSQL database, you can combine profiles: `local,postgres`.

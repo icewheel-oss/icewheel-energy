@@ -139,10 +139,6 @@ app:
 
 # Logging Configuration
 logging:
-  # Why: Configures file-based logging to persist logs across application runs,
-  # which is useful for debugging and auditing.
-  file:
-    path: ./logs/app # Logs will be written to a 'spring.log' file in the 'logs' directory.
   level:
     root: INFO
     org.springframework.web: INFO
@@ -220,3 +216,14 @@ spring:
 logging:
   level:
     root: INFO
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+# Logging Configuration for local development
+logging:
+  file:
+    path: ./logs/app # Logs will be written to a 'spring.log' file in the 'logs' directory.
+
