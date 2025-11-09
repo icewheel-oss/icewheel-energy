@@ -102,7 +102,7 @@ public class EnergyController {
     @ResponseBody
 	public ResponseEntity<LiveStatusResponse> getLiveStatus(@AuthenticationPrincipal OAuth2User oauth2User, @PathVariable String siteId) {
         String userId = oauth2User.getName();
-		LiveStatusResponse liveStatus = teslaEnergyService.getLiveStatus(userId, siteId);
+		LiveStatusResponse liveStatus = teslaEnergyService.getEnrichedLiveStatus(userId, siteId);
 
 		if (liveStatus != null) {
 			return ResponseEntity.ok(liveStatus);

@@ -312,8 +312,11 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 
 	@Override
 	public boolean isForcedChargeActive(User user) {
-		// A forced charge is active if the manual override flag is set in the user's preferences.
-		return user.getPreference() != null && user.getPreference().isForcedChargingActive();
+		// A forced charge is active if there is a temporary, enabled,
+		// start-charge schedule for the user.
+		return scheduleRepository.existsByUserAndIsTemporaryAndIsEnabledAndEventType(
+			user, true, true, ScheduleEventType.START_CHARGE
+		);
 	}
 
 	private ScheduleRequest mapResponseToRequest(ScheduleResponse response) {

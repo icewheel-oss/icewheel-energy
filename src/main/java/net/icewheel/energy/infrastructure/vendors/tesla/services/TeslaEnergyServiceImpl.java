@@ -260,6 +260,25 @@ public class TeslaEnergyServiceImpl implements TeslaEnergyService {
 	}
 
 	@Override
+	public LiveStatusResponse getEnrichedLiveStatus(String userId, String siteId) {
+		LiveStatusResponse liveStatus = getLiveStatus(userId, siteId);
+		if (liveStatus == null) {
+			return null;
+		}
+
+		// Enhance the response with a calculated energy_left value
+		SiteInfoResponse siteInfo = getSiteInfo(userId, siteId);
+		if (siteInfo != null && siteInfo.getBatteryCount() > 0 && siteInfo.getNameplatePower() > 0) {
+			double totalEnergy = (double) siteInfo.getNameplatePower() * siteInfo.getBatteryCount();
+			if (totalEnergy > 0 && liveStatus.getPercentageCharged() > 0) {
+				double calculatedEnergyLeft = totalEnergy * (liveStatus.getPercentageCharged() / 100.0);
+				liveStatus.setEnergyLeft(calculatedEnergyLeft);
+			}
+		}
+		return liveStatus;
+	}
+
+	@Override
 	public ChargeHistoryResponse getChargeHistory(String userId, String siteId, String startDate, String endDate, String timeZone) {
 		String path = "/api/1/energy_sites/{siteId}/telemetry_history?kind=charge&start_date={startDate}&end_date={endDate}&time_zone={timeZone}";
 		ChargeHistoryApiResponse apiResponse = executeGetRequest(userId, path, ChargeHistoryApiResponse.class, siteId, startDate, endDate, timeZone);

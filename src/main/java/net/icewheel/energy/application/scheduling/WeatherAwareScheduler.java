@@ -238,9 +238,6 @@ public class WeatherAwareScheduler {
 	 * @param chargePercent The dynamically calculated percentage to charge the battery to.
 	 */
 	private void createTemporaryChargeSchedule(PowerwallSchedule originalSchedule, User user, int chargePercent) {
-		user.getPreference().setForcedChargingActive(true);
-		userRepository.save(user);
-
 		// Create a "start charging" schedule
 		PowerwallSchedule startChargeSchedule = new PowerwallSchedule();
 		startChargeSchedule.setId(UUID.randomUUID());

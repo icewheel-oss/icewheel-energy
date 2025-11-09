@@ -26,6 +26,7 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.api.web.viewmodel.UserProfileDto;
+import net.icewheel.energy.application.scheduling.PowerwallScheduleService;
 import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.application.user.model.UserPreference;
 import net.icewheel.energy.application.user.repository.UserPreferenceRepository;
@@ -57,6 +58,7 @@ public class UIController {
     private final TokenService tokenService;
     private final TeslaEnergyService teslaEnergyService;
     private final UserPreferenceRepository userPreferenceRepository;
+    private final PowerwallScheduleService powerwallScheduleService;
 
     @GetMapping({"/", "/login.html"})
     public String index(Model model, @AuthenticationPrincipal OAuth2User oauth2User) {
@@ -78,7 +80,7 @@ public class UIController {
         User user = teslaUserService.findOrCreateUser(oauth2User);
         model.addAttribute("activePage", "dashboard");
         model.addAttribute("pageTitle", "Dashboard");
-        model.addAttribute("isForcedChargingActive", user.getPreference() != null && user.getPreference().isForcedChargingActive());
+        model.addAttribute("isForcedChargingActive", powerwallScheduleService.isForcedChargeActive(user));
         model.addAttribute("userPreference", user.getPreference() != null ? user.getPreference() : new UserPreference());
         List<String> timezones = new java.util.ArrayList<>(java.time.ZoneId.getAvailableZoneIds());
         java.util.Collections.sort(timezones);

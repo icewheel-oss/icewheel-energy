@@ -227,6 +227,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 emptyState.classList.remove('d-none');
             } else {
                 schedules.forEach(renderScheduleCard);
+                // Notify other scripts that the schedule cards have been rendered
+                document.dispatchEvent(new CustomEvent('schedulesRendered'));
             }
         } catch (error) {
             showToast(error.message, 'danger');
@@ -242,6 +244,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const renderScheduleCard = (schedule) => {
         const cardFragment = cardTemplate.content.cloneNode(true);
         const cardEl = cardFragment.querySelector('.col');
+        cardEl.dataset.siteId = schedule.energySiteId; // Associate card with siteId for live updates
 
         // Populate card fields
                 const nameEl = cardEl.querySelector('[data-field="name"]');

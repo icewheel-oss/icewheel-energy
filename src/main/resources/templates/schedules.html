@@ -69,7 +69,7 @@
                 <div th:each="product : ${products}" class="d-flex align-items-center gap-2" th:attr="data-site-id=${product.energySiteId}">
                     <i class="bi bi-lightning-charge-fill text-secondary"></i>
                     <span class="fw-bold" th:text="${product.siteName}">Site Name</span>
-                    <span class="badge rounded-pill" th:classappend="${product.percentageCharged > 70 ? 'bg-success-subtle text-success-emphasis' : (product.percentageCharged > 30 ? 'bg-warning-subtle text-warning-emphasis' : 'bg-danger-subtle text-danger-emphasis')}" th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 0)} + '%'"></span>
+                    <span class="badge rounded-pill" data-field="percentage-charged-badge" th:classappend="${product.percentageCharged > 70 ? 'bg-success-subtle text-success-emphasis' : (product.percentageCharged > 30 ? 'bg-warning-subtle text-warning-emphasis' : 'bg-danger-subtle text-danger-emphasis')}" th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 0)} + '%'"></span>
                 </div>
             </div>
             <hr class="my-4">

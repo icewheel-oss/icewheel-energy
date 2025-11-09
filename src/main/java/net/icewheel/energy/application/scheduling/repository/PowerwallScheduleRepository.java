@@ -45,4 +45,16 @@ public interface PowerwallScheduleRepository extends JpaRepository<PowerwallSche
     List<PowerwallSchedule> findAllByScheduleGroupId(UUID scheduleGroupId);
 
     List<PowerwallSchedule> findByUserAndScheduleType(User user, ScheduleType scheduleType);
+
+    /**
+     * Checks if a schedule exists matching the given criteria.
+     * This is an efficient way to determine if a forced charge is active.
+     *
+     * @param user The user.
+     * @param isTemporary True if the schedule should be temporary.
+     * @param isEnabled True if the schedule should be enabled.
+     * @param eventType The type of the event.
+     * @return true if a matching schedule exists, false otherwise.
+     */
+    boolean existsByUserAndIsTemporaryAndIsEnabledAndEventType(User user, boolean isTemporary, boolean isEnabled, net.icewheel.energy.application.scheduling.model.ScheduleEventType eventType);
 }
