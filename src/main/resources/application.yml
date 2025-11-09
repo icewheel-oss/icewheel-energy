@@ -167,6 +167,7 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     hibernate:
       ddl-auto: update
+    open-in-view: false
   cloud:
     vault:
       enabled: false
