@@ -256,4 +256,32 @@ class WeatherAwareSchedulerTest {
         // Expected target = 80 + 20 = 100, but capped at 80.
         assertEquals(80, startChargeSchedule.getBackupPercent());
     }
+
+    @Test
+    void testCheckForBadWeather_OnPeakBackupAdjustedDown() {
+        // Arrange
+        onPeakSchedule.setBackupPercent(20);
+        onPeakSchedule.setWeatherScalingFactor(50); // 50% aggressiveness
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(scheduleRepository.findAllByUser(user)).thenReturn(List.of(onPeakSchedule, offPeakSchedule));
+        when(weatherForecastEvaluator.evaluate(user)).thenReturn(new SolarForecast(0, "Stormy", Map.of())); // 100% shortfall
+
+        // Act
+        weatherAwareScheduler.checkForBadWeather();
+
+        // Assert
+        ArgumentCaptor<PowerwallSchedule> scheduleCaptor = ArgumentCaptor.forClass(PowerwallSchedule.class);
+        verify(scheduleRepository, times(2)).save(scheduleCaptor.capture());
+
+        List<PowerwallSchedule> savedSchedules = scheduleCaptor.getAllValues();
+        PowerwallSchedule stopChargeSchedule = savedSchedules.stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE)
+                .findFirst()
+                .orElseThrow();
+
+        // On-peak backup is 20. Shortfall is 100. Scaling factor is 50%.
+        // Adjustment = (100 / 100.0) * 20 * (50 / 100.0) = 1 * 20 * 0.5 = 10
+        // Expected target = 20 - 10 = 10.
+        assertEquals(10, stopChargeSchedule.getBackupPercent());
+    }
 }

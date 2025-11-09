@@ -202,7 +202,7 @@ public class WeatherAwareScheduler {
 								log.info(reason);
 								updateEvaluationDetails(weatherAwareSchedules, reason);
 								logWeatherUpdate(user, onPeakSchedule, reason);
-								createTemporaryChargeSchedule(onPeakSchedule, user, finalChargeTarget);
+								createTemporaryChargeSchedule(onPeakSchedule, user, finalChargeTarget, solarShortfall);
 							} else {
 								// If solar potential is good, just log the fact and do nothing.
 								log.info("Good solar potential detected for user {}. Reason: {}. No charge adjustment needed.", user.getId(), solarForecast.reason());
@@ -234,24 +234,24 @@ public class WeatherAwareScheduler {
 	 * @param user The user for whom the schedule is created.
 	 * @param chargePercent The dynamically calculated percentage to charge the battery to.
 	 */
-	private void createTemporaryChargeSchedule(PowerwallSchedule originalSchedule, User user, int chargePercent) {
+	private void createTemporaryChargeSchedule(PowerwallSchedule onPeakSchedule, User user, int chargePercent, int solarShortfall) {
 		// Create a "start charging" schedule
 		PowerwallSchedule startChargeSchedule = new PowerwallSchedule();
 		startChargeSchedule.setId(UUID.randomUUID());
-		startChargeSchedule.setScheduleGroupId(originalSchedule.getScheduleGroupId());
+		startChargeSchedule.setScheduleGroupId(onPeakSchedule.getScheduleGroupId());
 		startChargeSchedule.setUser(user);
-		startChargeSchedule.setName("Temporary Start Charge for " + originalSchedule.getName());
+		startChargeSchedule.setName("Temporary Start Charge for " + onPeakSchedule.getName());
 		startChargeSchedule.setDescription("Temporary charging schedule created due to bad weather forecast.");
-		startChargeSchedule.setEnergySiteId(originalSchedule.getEnergySiteId());
-		startChargeSchedule.setDaysOfWeek(originalSchedule.getDaysOfWeek());
-		startChargeSchedule.setTimeZone(originalSchedule.getTimeZone());
+		startChargeSchedule.setEnergySiteId(onPeakSchedule.getEnergySiteId());
+		startChargeSchedule.setDaysOfWeek(onPeakSchedule.getDaysOfWeek());
+		startChargeSchedule.setTimeZone(onPeakSchedule.getTimeZone());
 		startChargeSchedule.setEnabled(true);
 		startChargeSchedule.setEventType(ScheduleEventType.START_CHARGE);
 		startChargeSchedule.setScheduleType(ScheduleType.WEATHER_AWARE);
 		startChargeSchedule.setBackupPercent(chargePercent);
 		startChargeSchedule.setTemporary(true);
 
-		ZonedDateTime now = ZonedDateTime.now(clock.withZone(originalSchedule.getTimeZone()));
+		ZonedDateTime now = ZonedDateTime.now(clock.withZone(onPeakSchedule.getTimeZone()));
 		ZonedDateTime startExecutionTime = now.plusMinutes(5);
 		String startCronExpression = String.format("%d %d %d %d %d ?",
 				startExecutionTime.getSecond(),
@@ -266,21 +266,28 @@ public class WeatherAwareScheduler {
 		// Create a "stop charging" schedule
 		PowerwallSchedule stopChargeSchedule = new PowerwallSchedule();
 		stopChargeSchedule.setId(UUID.randomUUID());
-		stopChargeSchedule.setScheduleGroupId(originalSchedule.getScheduleGroupId());
+		stopChargeSchedule.setScheduleGroupId(onPeakSchedule.getScheduleGroupId());
 		stopChargeSchedule.setUser(user);
-		stopChargeSchedule.setName("Temporary Stop Charge for " + originalSchedule.getName());
+		stopChargeSchedule.setName("Temporary Stop Charge for " + onPeakSchedule.getName());
 		stopChargeSchedule.setDescription("Temporary schedule to stop charging after bad weather event.");
-		stopChargeSchedule.setEnergySiteId(originalSchedule.getEnergySiteId());
-		stopChargeSchedule.setDaysOfWeek(originalSchedule.getDaysOfWeek());
-		stopChargeSchedule.setTimeZone(originalSchedule.getTimeZone());
+		stopChargeSchedule.setEnergySiteId(onPeakSchedule.getEnergySiteId());
+		stopChargeSchedule.setDaysOfWeek(onPeakSchedule.getDaysOfWeek());
+		stopChargeSchedule.setTimeZone(onPeakSchedule.getTimeZone());
 		stopChargeSchedule.setEnabled(true);
 		stopChargeSchedule.setEventType(ScheduleEventType.START_DISCHARGE); // This will set backup to a low value
 		stopChargeSchedule.setScheduleType(ScheduleType.WEATHER_AWARE);
-		stopChargeSchedule.setBackupPercent(20); // A low value to stop charging
+
+		int onPeakBackupPercent = onPeakSchedule.getBackupPercent();
+		int scalingFactor = onPeakSchedule.getWeatherScalingFactor() != null ? onPeakSchedule.getWeatherScalingFactor() : 100;
+		double adjustment = (solarShortfall / 100.0) * onPeakBackupPercent * (scalingFactor / 100.0);
+		int adjustedOnPeakBackup = onPeakBackupPercent - (int) Math.round(adjustment);
+		int finalOnPeakBackup = Math.max(0, adjustedOnPeakBackup);
+
+		stopChargeSchedule.setBackupPercent(finalOnPeakBackup);
 		stopChargeSchedule.setTemporary(true);
 
-		ZonedDateTime stopExecutionTime = originalSchedule.getScheduledTime().atDate(now.toLocalDate()).atZone(originalSchedule.getTimeZone());
-		if (now.toLocalTime().isAfter(originalSchedule.getScheduledTime())) {
+		ZonedDateTime stopExecutionTime = onPeakSchedule.getScheduledTime().atDate(now.toLocalDate()).atZone(onPeakSchedule.getTimeZone());
+		if (now.toLocalTime().isAfter(onPeakSchedule.getScheduledTime())) {
 			stopExecutionTime = stopExecutionTime.plusDays(1);
 		}
 
