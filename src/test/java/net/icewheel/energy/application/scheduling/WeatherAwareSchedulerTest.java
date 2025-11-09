@@ -109,8 +109,8 @@ class WeatherAwareSchedulerTest {
         // Base is 80. Shortfall is 50. Available to charge is 20.
         // Scaling factor is 50%.
         // Adjustment = (50 / 100.0) * (100.0 - 80) * (50 / 100.0) = 0.5 * 20 * 0.5 = 5
-        // Expected target = 80 + 5 = 85
-        assertEquals(85, startChargeSchedule.getBackupPercent());
+        // Expected target = 80 + 5 = 85, but capped at 80.
+        assertEquals(80, startChargeSchedule.getBackupPercent());
     }
 
     @Test
@@ -148,18 +148,10 @@ class WeatherAwareSchedulerTest {
         weatherAwareScheduler.checkForBadWeather();
 
         // Assert
-        ArgumentCaptor<PowerwallSchedule> scheduleCaptor = ArgumentCaptor.forClass(PowerwallSchedule.class);
-        verify(scheduleRepository, times(2)).save(scheduleCaptor.capture());
-
-        List<PowerwallSchedule> savedSchedules = scheduleCaptor.getAllValues();
-        PowerwallSchedule startChargeSchedule = savedSchedules.stream()
-                .filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE)
-                .findFirst()
-                .orElseThrow();
-
-        // Base is 80. Shortfall is 100. Available is 20. Adjustment is 100% of (100% of 20) = 20
-        // Expected target = 80 + 20 = 100, but capped at 90.
-        assertEquals(90, startChargeSchedule.getBackupPercent());
+        // Expected target = 80 + 20 = 100. However, with the 80% cap, the new target would be 80.
+        // Since the existing temporary schedule is 85%, and 80% is not higher, no new schedule should be created.
+        verify(scheduleRepository, never()).save(any(PowerwallSchedule.class));
+        verify(scheduleRepository).saveAll(any());
     }
 
     @Test
@@ -173,11 +165,11 @@ class WeatherAwareSchedulerTest {
         existingTempSchedule.setScheduleType(ScheduleType.WEATHER_AWARE);
         existingTempSchedule.setEventType(ScheduleEventType.START_CHARGE);
         existingTempSchedule.setEnabled(true);
-        existingTempSchedule.setBackupPercent(90);
+        existingTempSchedule.setBackupPercent(100);
 
         lenient().when(userRepository.findAll()).thenReturn(List.of(user));
         lenient().when(scheduleRepository.findAllByUser(user)).thenReturn(List.of(onPeakSchedule, offPeakSchedule, existingTempSchedule));
-        when(weatherForecastEvaluator.evaluate(user)).thenReturn(new SolarForecast(50, "Cloudy", Map.of())); // 50% shortfall -> 85% target
+        when(weatherForecastEvaluator.evaluate(user)).thenReturn(new SolarForecast(50, "Cloudy", Map.of())); // 50% shortfall -> 80% target
 
         // Act
         weatherAwareScheduler.checkForBadWeather();
@@ -237,5 +229,31 @@ class WeatherAwareSchedulerTest {
 
         // Assert
         verify(scheduleRepository).deleteAll(List.of(expiredTempSchedule));
+    }
+
+    @Test
+    void testCheckForBadWeather_ChargeTargetCappedAt80() {
+        // Arrange
+        offPeakSchedule.setWeatherScalingFactor(100); // 100% aggressiveness
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(scheduleRepository.findAllByUser(user)).thenReturn(List.of(onPeakSchedule, offPeakSchedule));
+        when(weatherForecastEvaluator.evaluate(user)).thenReturn(new SolarForecast(0, "Stormy", Map.of())); // 100% shortfall
+
+        // Act
+        weatherAwareScheduler.checkForBadWeather();
+
+        // Assert
+        ArgumentCaptor<PowerwallSchedule> scheduleCaptor = ArgumentCaptor.forClass(PowerwallSchedule.class);
+        verify(scheduleRepository, times(2)).save(scheduleCaptor.capture());
+
+        List<PowerwallSchedule> savedSchedules = scheduleCaptor.getAllValues();
+        PowerwallSchedule startChargeSchedule = savedSchedules.stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_CHARGE)
+                .findFirst()
+                .orElseThrow();
+
+        // Base is 80. Shortfall is 100. Available is 20. Adjustment is 100% of (100% of 20) = 20
+        // Expected target = 80 + 20 = 100, but capped at 80.
+        assertEquals(80, startChargeSchedule.getBackupPercent());
     }
 }
