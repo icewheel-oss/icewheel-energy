@@ -47,6 +47,29 @@ This approach is secure and efficient for development and troubleshooting, as it
     ./mvnw clean install
     ```
 
+## `DataIntegrityViolationException` due to `schedule_audit_events_action_check`
+
+### The Problem
+
+A `DataIntegrityViolationException` may occur when the application tries to save a `WEATHER_UPDATE` audit event. This is caused by an outdated `CHECK` constraint in the database that does not allow the `WEATHER_UPDATE` value.
+
+The error message is:
+```
+ERROR: new row for relation "schedule_audit_events" violates check constraint "schedule_audit_events_action_check"
+```
+
+This can happen if the `ScheduleAuditEvent` entity was updated to include the `WEATHER_UPDATE` action, but the database schema was not updated correctly.
+
+### The Solution
+
+The solution is to manually remove the check constraint from the `schedule_audit_events` table.
+
+```sql
+ALTER TABLE schedule_audit_events DROP CONSTRAINT schedule_audit_events_action_check;
+```
+
+After running this SQL statement, the application should be able to save `WEATHER_UPDATE` audit events without any issues.
+
 ## Production Considerations
 
 In a production environment, dropping tables is not a viable solution. A proper database migration tool like [Flyway](https://flywaydb.org/) or [Liquibase](https://www.liquibase.org/) should be used to manage schema changes in a controlled and versioned manner. These tools can handle complex data migrations and ensure that no data is lost during schema evolution.

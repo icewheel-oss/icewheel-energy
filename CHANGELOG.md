@@ -23,6 +23,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The database schema has been updated to support the new features.
 - The UI has been updated to display weather information and user preferences.
 
+### Fixed
+
+- **Database Schema Mismatch:** Fixed a `DataIntegrityViolationException` that occurred when the application tried to save a `WEATHER_UPDATE` audit event. This was caused by an outdated `CHECK` constraint in the database. The fix was to remove the constraint from the `ScheduleAuditEvent` entity and provide the following SQL statement to manually remove the constraint from existing databases:
+
+  ```sql
+  ALTER TABLE schedule_audit_events DROP CONSTRAINT schedule_audit_events_action_check;
+  ```
+
 ### Removed
 
 - The old `UserService` and `UserServiceImpl` have been removed.
