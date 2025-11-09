@@ -1,24 +1,14 @@
 package net.icewheel.energy.application.scheduling;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 import java.time.DayOfWeek;
 import java.time.LocalTime;
-import java.time.ZoneId;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
+import jakarta.validation.Validator;
 import net.icewheel.energy.api.rest.dto.ScheduleRequest;
 import net.icewheel.energy.api.rest.dto.ScheduleResponse;
 import net.icewheel.energy.application.scheduling.exception.ScheduleNotFoundException;
@@ -30,16 +20,23 @@ import net.icewheel.energy.application.scheduling.model.ScheduleType;
 import net.icewheel.energy.application.scheduling.repository.PowerwallScheduleRepository;
 import net.icewheel.energy.application.scheduling.repository.ScheduleAuditEventRepository;
 import net.icewheel.energy.application.user.model.User;
-import net.icewheel.energy.application.user.model.UserPreference;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import jakarta.validation.Validator;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class PowerwallScheduleServiceImplTest {

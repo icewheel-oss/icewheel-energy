@@ -28,10 +28,10 @@ import net.icewheel.energy.application.scheduling.PowerwallScheduleService;
 import net.icewheel.energy.application.scheduling.model.ScheduleAuditEvent;
 import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
 import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.infrastructure.modules.weather.WeatherService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaUserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
-import net.icewheel.energy.infrastructure.modules.weather.WeatherService;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;

@@ -4,27 +4,24 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZonedDateTime;
-import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.application.scheduling.model.PowerwallSchedule;
+import net.icewheel.energy.application.scheduling.model.ScheduleAuditEvent;
 import net.icewheel.energy.application.scheduling.model.ScheduleEventType;
-import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
 import net.icewheel.energy.application.scheduling.model.ScheduleType;
 import net.icewheel.energy.application.scheduling.repository.PowerwallScheduleRepository;
+import net.icewheel.energy.application.scheduling.repository.ScheduleAuditEventRepository;
 import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.application.user.repository.UserRepository;
 import net.icewheel.energy.infrastructure.modules.weather.SolarForecast;
 import net.icewheel.energy.infrastructure.modules.weather.WeatherForecastEvaluator;
-import net.icewheel.energy.infrastructure.modules.weather.exception .ForecastEvaluationException;
-import net.icewheel.energy.application.scheduling.model.ScheduleAuditEvent;
-import net.icewheel.energy.application.scheduling.repository.ScheduleAuditEventRepository;
-
-import java.util.Map;
+import net.icewheel.energy.infrastructure.modules.weather.exception.ForecastEvaluationException;
 
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;

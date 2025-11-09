@@ -20,6 +20,7 @@ import net.icewheel.energy.infrastructure.weather.nws.gen.model.Gridpoint12hFore
 import net.icewheel.energy.infrastructure.weather.nws.gen.model.GridpointHourlyForecastJsonLd;
 import net.icewheel.energy.infrastructure.weather.nws.gen.model.PointJsonLd;
 import net.icewheel.energy.infrastructure.weather.nws.gen.model.QuantitativeValue;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;

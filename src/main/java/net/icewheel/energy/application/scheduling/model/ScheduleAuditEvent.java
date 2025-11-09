@@ -23,7 +23,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -39,7 +38,6 @@ import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 import net.icewheel.energy.application.user.model.User;
-import org.hibernate.annotations.Check;
 import org.hibernate.annotations.CreationTimestamp;
 
 @Entity
