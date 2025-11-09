@@ -165,32 +165,25 @@ class PowerwallScheduleServiceImplTest {
     }
 
     @Test
-    void testIsForcedChargeActive_NoPreference() {
-        user.setPreference(null);
-        boolean isActive = scheduleService.isForcedChargeActive(user);
-        assertFalse(isActive);
-    }
-
-    @Test
-    void testIsForcedChargeActive_PreferenceFalse() {
-        UserPreference preferences = new UserPreference();
-        preferences.setForcedChargingActive(false);
-        user.setPreference(preferences);
-
-        boolean isActive = scheduleService.isForcedChargeActive(user);
-
-        assertFalse(isActive);
-    }
-
-    @Test
-    void testIsForcedChargeActive_PreferenceTrue() {
-        UserPreference preferences = new UserPreference();
-        preferences.setForcedChargingActive(true);
-        user.setPreference(preferences);
+    void testIsForcedChargeActive_ReturnsTrueWhenActiveScheduleExists() {
+        when(scheduleRepository.existsByUserAndTemporaryAndEnabledAndEventType(
+                user, true, true, ScheduleEventType.START_CHARGE))
+                .thenReturn(true);
 
         boolean isActive = scheduleService.isForcedChargeActive(user);
 
         assertTrue(isActive);
+    }
+
+    @Test
+    void testIsForcedChargeActive_ReturnsFalseWhenNoActiveScheduleExists() {
+        when(scheduleRepository.existsByUserAndTemporaryAndEnabledAndEventType(
+                user, true, true, ScheduleEventType.START_CHARGE))
+                .thenReturn(false);
+
+        boolean isActive = scheduleService.isForcedChargeActive(user);
+
+        assertFalse(isActive);
     }
 
     @Test
