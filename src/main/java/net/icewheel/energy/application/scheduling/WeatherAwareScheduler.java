@@ -305,7 +305,7 @@ public class WeatherAwareScheduler {
 		scheduleRepository.save(stopChargeSchedule);
 
 
-		log.info("Created temporary charging schedules for user {}", user.getId());
+		log.info("Created temporary charging schedules for user {}. Start charge target: {}%, Stop charge target: {}%.", user.getId(), chargePercent, finalOnPeakBackup);
 	}
 
 	private void updateEvaluationDetails(List<PowerwallSchedule> schedules, String reason) {
