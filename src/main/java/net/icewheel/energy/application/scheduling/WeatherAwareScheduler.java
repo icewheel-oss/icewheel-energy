@@ -175,8 +175,8 @@ public class WeatherAwareScheduler {
 										int scalingFactor = offPeakSchedule.getWeatherScalingFactor() != null ? offPeakSchedule.getWeatherScalingFactor() : 100;
 										double adjustment = (solarShortfall / 100.0) * (100.0 - baseBackupPercent) * (scalingFactor / 100.0);
 										int adjustedChargeTarget = baseBackupPercent + (int) Math.round(adjustment);
-								// The final target cannot exceed 90% to preserve battery health.
-								int finalChargeTarget = Math.min(90, adjustedChargeTarget);
+								// The final target cannot exceed 80% to preserve battery health.
+								int finalChargeTarget = Math.min(80, adjustedChargeTarget);
 			
 								// If a forced charge is already active, only create a new one if the new target is higher.
 								if (user.getPreference() != null && user.getPreference().isForcedChargingActive()) {
