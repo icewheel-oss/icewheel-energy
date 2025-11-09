@@ -300,7 +300,7 @@ public class WeatherService {
 	 * @return An {@link Optional} containing the {@link RawForecastPayload}.
 	 */
 	public Optional<RawForecastPayload> getRawForecasts(double latitude, double longitude) {
-		log.info("Fetching raw forecasts from DB for lat={}, lon={}", latitude, longitude);
+		log.debug("Fetching raw forecasts from DB for lat={}, lon={}", latitude, longitude);
 		return getForecastReportFromDb(latitude, longitude)
 				.map(report -> new RawForecastPayload(
 						report.getRawPointsResponse(),

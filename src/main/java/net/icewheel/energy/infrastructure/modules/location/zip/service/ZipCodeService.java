@@ -95,7 +95,7 @@ public class ZipCodeService {
             ZipCodeCache firstEntry = cached.getFirst();
             if (firstEntry.isLookupSuccessful()) {
                 if (Duration.between(firstEntry.getLastLookup(), Instant.now()).compareTo(SUCCESSFUL_LOOKUP_EXPIRATION) < 0) {
-                    log.info("Found fresh successful zip code lookup in DB cache for {}", zipCode);
+                    log.debug("Found fresh successful zip code lookup in DB cache for {}", zipCode);
                 return Optional.of(cached);
                 } else {
                     log.info("Found stale successful zip code lookup in DB cache for {}. Refreshing.", zipCode);
