@@ -314,7 +314,7 @@ public class PowerwallScheduleServiceImpl implements PowerwallScheduleService {
 	public boolean isForcedChargeActive(User user) {
 		// A forced charge is active if there is a temporary, enabled,
 		// start-charge schedule for the user.
-		return scheduleRepository.existsByUserAndIsTemporaryAndIsEnabledAndEventType(
+		return scheduleRepository.existsByUserAndTemporaryAndEnabledAndEventType(
 			user, true, true, ScheduleEventType.START_CHARGE
 		);
 	}

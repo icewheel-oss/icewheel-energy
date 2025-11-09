@@ -56,5 +56,5 @@ public interface PowerwallScheduleRepository extends JpaRepository<PowerwallSche
      * @param eventType The type of the event.
      * @return true if a matching schedule exists, false otherwise.
      */
-    boolean existsByUserAndIsTemporaryAndIsEnabledAndEventType(User user, boolean isTemporary, boolean isEnabled, net.icewheel.energy.application.scheduling.model.ScheduleEventType eventType);
+    boolean existsByUserAndTemporaryAndEnabledAndEventType(User user, boolean isTemporary, boolean isEnabled, net.icewheel.energy.application.scheduling.model.ScheduleEventType eventType);
 }
