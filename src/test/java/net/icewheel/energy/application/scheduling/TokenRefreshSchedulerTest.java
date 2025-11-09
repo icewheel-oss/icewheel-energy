@@ -45,7 +45,7 @@ class TokenRefreshSchedulerTest {
         user2.setId("user2");
         List<User> users = List.of(user1, user2);
 
-        when(userRepository.findAll()).thenReturn(users);
+        when(userRepository.findAllWithTokens()).thenReturn(users);
 
         // Act
         tokenRefreshScheduler.proactivelyRefreshTokens();
@@ -67,7 +67,7 @@ class TokenRefreshSchedulerTest {
         user2.setId("user2");
         List<User> users = List.of(user1, user2);
 
-        when(userRepository.findAll()).thenReturn(users);
+        when(userRepository.findAllWithTokens()).thenReturn(users);
         doThrow(new RuntimeException("API error")).when(tokenService).getValidAccessToken("user1");
 
         // Act
@@ -84,7 +84,7 @@ class TokenRefreshSchedulerTest {
     @Test
     void testProactivelyRefreshTokens_NoUsers() {
         // Arrange
-        when(userRepository.findAll()).thenReturn(List.of());
+        when(userRepository.findAllWithTokens()).thenReturn(List.of());
 
         // Act
         tokenRefreshScheduler.proactivelyRefreshTokens();
