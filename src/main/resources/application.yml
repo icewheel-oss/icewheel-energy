@@ -139,6 +139,7 @@ app:
 
 # Logging Configuration
 logging:
+  config: classpath:logback-spring.xml
   level:
     root: INFO
     org.springframework.web: INFO
