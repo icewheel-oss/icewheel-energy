@@ -20,10 +20,13 @@ import net.icewheel.energy.infrastructure.weather.nws.gen.model.Gridpoint12hFore
 import net.icewheel.energy.infrastructure.weather.nws.gen.model.GridpointHourlyForecastJsonLd;
 import net.icewheel.energy.infrastructure.weather.nws.gen.model.PointJsonLd;
 import net.icewheel.energy.infrastructure.weather.nws.gen.model.QuantitativeValue;
-
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Recover;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.ResourceAccessException;
 
 /**
  * A service responsible for orchestrating the fetching, processing, and storage of weather data.
@@ -114,6 +117,7 @@ public class WeatherService {
 	 * @param longitude The longitude for the forecast.
 	 * @return An {@link Optional} containing the newly saved {@link ForecastReport}.
 	 */
+	@Retryable(retryFor = {ResourceAccessException.class, Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 2000))
 	private Optional<ForecastReport> fetchAndSaveForecast(double latitude, double longitude) {
 		try {
 			// Find existing location or create a new one
@@ -146,9 +150,16 @@ public class WeatherService {
 		}
 		catch (Exception e) {
 			log.error("Failed to fetch and save forecast from provider {}", weatherProvider.getType(), e);
+			throw new RuntimeException(e); // Re-throw the exception to trigger the retry
 		}
+	}
+
+	@Recover
+	private Optional<ForecastReport> recover(Exception e, double latitude, double longitude) {
+		log.error("All retry attempts failed for fetchAndSaveForecast with lat={}, lon={}", latitude, longitude, e);
 		return Optional.empty();
 	}
+
 
 	/**
 	 * Gets simplified weather data for the global weather widget based on a zip code.
