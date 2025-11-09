@@ -59,7 +59,6 @@ public class ScheduleAuditEvent {
     private String scheduleName;
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    @Check(constraints = "action IN ('CREATED', 'UPDATED', 'DELETED', 'RECONCILED', 'WEATHER_UPDATE')")
     private AuditAction action;
     @Column(name = "details", columnDefinition = "TEXT")
 	private String details;

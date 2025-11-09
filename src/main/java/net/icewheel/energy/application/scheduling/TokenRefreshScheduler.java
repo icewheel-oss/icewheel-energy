@@ -63,7 +63,7 @@ public class TokenRefreshScheduler {
 	@SchedulerLock(name = "proactiveTokenRefresh", lockAtMostFor = "10m", lockAtLeastFor = "1m")
 	public void proactivelyRefreshTokens() {
 		log.info("Starting proactive token refresh job.");
-        List<User> users = userRepository.findAll();
+        List<User> users = userRepository.findAllWithTokens();
 
         for (User user : users) {
 			try {

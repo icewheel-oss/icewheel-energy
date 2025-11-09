@@ -19,13 +19,18 @@
 
 package net.icewheel.energy.application.user.repository;
 
-import java.util.Optional;
-
 import net.icewheel.energy.application.user.model.User;
-
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
+import java.util.Optional;
 
 public interface UserRepository extends JpaRepository<User, String> {
 
 	Optional<User> findByEmail(String email);
+
+	@Query("SELECT u FROM User u WHERE u.tokens IS NOT EMPTY")
+	List<User> findAllWithTokens();
 }
+
