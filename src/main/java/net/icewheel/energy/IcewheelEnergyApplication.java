@@ -25,6 +25,7 @@ import net.icewheel.energy.application.scheduling.MisfireHandlingService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.cloud.vault.config.VaultAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
@@ -33,7 +34,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 /**
  * The main entry point for the Icewheel Energy application.
  */
-@SpringBootApplication
+@SpringBootApplication(exclude = { VaultAutoConfiguration.class })
 @EnableScheduling
 @EnableJpaAuditing
 @EnableAspectJAutoProxy
