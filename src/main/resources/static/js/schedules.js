@@ -615,7 +615,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const solarShortfall = 100 - sunshinePercentage;
         const adjustment = (solarShortfall / 100.0) * (100.0 - baseBackupPercent) * (scalingFactor / 100.0);
         const adjustedChargeTarget = baseBackupPercent + adjustment;
-        const finalChargeTarget = Math.min(90, Math.round(adjustedChargeTarget));
+        const finalChargeTarget = Math.min(80, Math.round(adjustedChargeTarget));
 
         predictedChargeTargetEl.textContent = `${finalChargeTarget}%`;
     };
