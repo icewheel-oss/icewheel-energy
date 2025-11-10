@@ -112,7 +112,7 @@
 
         <!-- Case 3: Tokens are found, display as an accordion -->
         <div class="accordion" id="tokenAccordion" th:if="${teslaConnected and !tokenDetails.isEmpty()}">
-            <div class="accordion-item mb-3" th:each="detail, iter : ${tokenDetails}">
+            <div class="accordion-item mb-3" th:each="detail, iter : ${tokenDetails.content}">
                 <h2 class="accordion-header" th:id="'heading' + ${iter.index}">
                     <button class="accordion-button" th:classappend="${iter.index != 0} ? 'collapsed'" type="button" data-bs-toggle="collapse" th:data-bs-target="'#collapse' + ${iter.index}" th:aria-expanded="${iter.index == 0}" th:aria-controls="'collapse' + ${iter.index}">
                         <div class="d-flex w-100 justify-content-between align-items-center pe-2">
@@ -120,11 +120,11 @@
                             </span>
                             <div>
                                 <!-- The newest token is active; older unexpired tokens are superseded. -->
-                                <th:block th:if="${iter.index == 0}">
+                                <th:block th:if="${iter.index == 0 and tokenDetails.first}">
                                     <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-success-subtle text-success-emphasis rounded-pill">Active</span>
                                     <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Expired</span>
                                 </th:block>
-                                <th:block th:if="${iter.index != 0}">
+                                <th:block th:if="${iter.index != 0 or !tokenDetails.first}">
                                     <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill">Superseded</span>
                                     <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill">Expired</span>
                                 </th:block>
@@ -132,7 +132,7 @@
                         </div>
                     </button>
                 </h2>
-                <div th:id="'collapse' + ${iter.index}" class="accordion-collapse collapse" th:classappend="${iter.index == 0} ? 'show'" th:aria-labelledby="'heading' + ${iter.index}">
+                <div th:id="'collapse' + ${iter.index}" class="accordion-collapse collapse" th:classappend="${iter.index == 0 and tokenDetails.first} ? 'show'" th:aria-labelledby="'heading' + ${iter.index}">
                     <div class="accordion-body">
                         <div class="alert alert-warning d-flex align-items-center" role="alert">
                             <i class="bi bi-exclamation-triangle-fill me-2"></i>
@@ -188,15 +188,15 @@
                                     <li class="list-group-item d-flex justify-content-between align-items-center px-0">
                                         <span>Access Token Status</span>
                                         <div>
-                                            <th:block th:if="${iter.index == 0}">
+                                            <th:block th:if="${iter.index == 0 and tokenDetails.first}">
                                                 <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">Active</span>
                                                 <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
                                             </th:block>
-                                            <th:block th:if="${iter.index != 0}">
+                                            <th:block th:if="${iter.index != 0 or !tokenDetails.first}">
                                                 <span th:if="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">Superseded</span>
                                                 <span th:unless="${detail.token.expiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
                                             </th:block>
-                                            <!-- 
+                                            <!--
                                               Why: The 'userTimezone' attribute is used here to format the timestamps.
                                               This attribute is globally available in the model thanks to the
                                               GlobalModelAttributeAdvice class. It provides the user's preferred
@@ -210,11 +210,11 @@
                                         <span>Refresh Token Status</span>
                                         <div>
                                             <!-- The newest token is active until its 3-month expiry. Older tokens are considered superseded. -->
-                                            <th:block th:if="${iter.index == 0}">
+                                            <th:block th:if="${iter.index == 0 and tokenDetails.first}">
                                                 <span th:if="${detail.token.refreshTokenExpiration > #dates.createNow().getTime() / 1000}" class="badge bg-success-subtle text-success-emphasis rounded-pill me-2">Active</span>
                                                 <span th:unless="${detail.token.refreshTokenExpiration > #dates.createNow().getTime() / 1000}" class="badge bg-danger-subtle text-danger-emphasis rounded-pill me-2">Expired</span>
                                             </th:block>
-                                            <th:block th:if="${iter.index != 0}">
+                                            <th:block th:if="${iter.index != 0 or !tokenDetails.first}">
                                                 <span class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill me-2">Superseded</span>
                                             </th:block>
                                             <span class="fw-bold local-datetime" th:attr="data-timestamp=${detail.token.refreshTokenExpiration}" th:text="${dateTimeUtil.formatTimestamp(detail.token.refreshTokenExpiration, userTimezone)}"></span>
@@ -271,7 +271,27 @@
             </div>
         </div>
 
+        <!-- Pagination Controls -->
+        <nav th:if="${teslaConnected and tokenDetails.totalPages > 1}" aria-label="Token pagination" class="mt-4">
+            <ul class="pagination justify-content-center">
+                <li class="page-item" th:classappend="${tokenDetails.first} ? 'disabled'">
+                    <a class="page-link" th:href="@{/token-details(page=${tokenDetails.number - 1})}">Previous</a>
+                </li>
+                <li class="page-item" th:each="i : ${#numbers.sequence(0, tokenDetails.totalPages - 1)}" th:classappend="${i == tokenDetails.number} ? 'active'">
+                    <a class="page-link" th:href="@{/token-details(page=${i})}" th:text="${i + 1}"></a>
+                </li>
+                <li class="page-item" th:classappend="${tokenDetails.last} ? 'disabled'">
+                    <a class="page-link" th:href="@{/token-details(page=${tokenDetails.number + 1})}">Next</a>
+                </li>
+            </ul>
+        </nav>
+
     </main>
+
+    <footer th:replace="~{fragments/footer :: page_footer}"></footer>
+    <div th:replace="~{fragments/footer :: scripts}"></div>
+</body>
+</html>
 
     <footer th:replace="~{fragments/footer :: page_footer}"></footer>
     <div th:replace="~{fragments/footer :: scripts}"></div>

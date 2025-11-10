@@ -27,6 +27,7 @@ import jakarta.persistence.LockModeType;
 import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.Token;
 
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
@@ -42,7 +43,7 @@ public interface TokenRepository extends JpaRepository<Token, UUID> {
 	 * @param user The user to find tokens for.
 	 * @return A list of tokens, with the most recent one first.
 	 */
-	List<Token> findByUserOrderByCreatedAtDesc(User user);
+	Page<Token> findByUserOrderByCreatedAtDesc(User user, Pageable pageable);
 
 	/**
 	 * Find a token by the Tesla email address. Use it as backup

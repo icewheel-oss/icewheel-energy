@@ -35,7 +35,8 @@ import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.LiveStatusResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.Product;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
-
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -46,6 +47,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
@@ -119,14 +121,17 @@ public class UIController {
     }
 
     @GetMapping("/token-details")
-    public String tokenDetails(Model model, @AuthenticationPrincipal OAuth2User oauth2User) {
+    public String tokenDetails(Model model, @AuthenticationPrincipal OAuth2User oauth2User,
+                               @RequestParam(defaultValue = "0") int page,
+                               @RequestParam(defaultValue = "10") int size) {
         User user = teslaUserService.findOrCreateUser(oauth2User);
         model.addAttribute("activePage", "tokens");
         model.addAttribute("pageTitle", "API Token Details");
         if (tokenService.isUserConnected(user)) {
-			model.addAttribute("tokenDetails", tokenService.getTokenDetailsForUser(user));
-		}
-        
+            Pageable pageable = PageRequest.of(page, size);
+            model.addAttribute("tokenDetails", tokenService.getTokenDetailsForUser(user, pageable));
+        }
+
 
         return "token-details";
     }

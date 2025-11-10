@@ -27,6 +27,8 @@ import net.icewheel.energy.application.user.model.User;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.Token;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TokenResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.UserMeResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 
 /**
  * Service for managing Tesla OAuth tokens.
@@ -90,5 +92,5 @@ public interface TokenService {
 	 * @param user the user whose tokens are to be retrieved
 	 * @return a list of {@link TokenDetailView} objects
 	 */
-	List<TokenDetailView> getTokenDetailsForUser(User user);
+	Page<TokenDetailView> getTokenDetailsForUser(User user, Pageable pageable);
 }

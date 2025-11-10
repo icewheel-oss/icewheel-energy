@@ -45,8 +45,9 @@ import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.Token;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TokenResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.UserMeResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.repository.TokenRepository;
-
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -321,10 +322,10 @@ public class TokenServiceImpl implements TokenService {
 	 * @return A list of TokenDetailView objects, each containing detailed information about a token.
 	 */
 	@Override
-	public List<TokenDetailView> getTokenDetailsForUser(User user) {
-		List<Token> tokens = tokenRepository.findByUserOrderByCreatedAtDesc(user);
+	public Page<TokenDetailView> getTokenDetailsForUser(User user, Pageable pageable) {
+		Page<Token> tokens = tokenRepository.findByUserOrderByCreatedAtDesc(user, pageable);
 
-		return tokens.stream().map(token -> {
+		return tokens.map(token -> {
 			TokenDetailView view = new TokenDetailView();
 			view.setToken(token);
 			try {
@@ -355,7 +356,7 @@ public class TokenServiceImpl implements TokenService {
 				view.setScopes(Collections.emptyList());
 			}
 			return view;
-		}).collect(Collectors.toList());
+		});
 	}
 
 	/**
