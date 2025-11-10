@@ -272,19 +272,7 @@
         </div>
 
         <!-- Pagination Controls -->
-        <nav th:if="${teslaConnected and tokenDetails.totalPages > 1}" aria-label="Token pagination" class="mt-4">
-            <ul class="pagination justify-content-center">
-                <li class="page-item" th:classappend="${tokenDetails.first} ? 'disabled'">
-                    <a class="page-link" th:href="@{/token-details(page=${tokenDetails.number - 1})}">Previous</a>
-                </li>
-                <li class="page-item" th:each="i : ${#numbers.sequence(0, tokenDetails.totalPages - 1)}" th:classappend="${i == tokenDetails.number} ? 'active'">
-                    <a class="page-link" th:href="@{/token-details(page=${i})}" th:text="${i + 1}"></a>
-                </li>
-                <li class="page-item" th:classappend="${tokenDetails.last} ? 'disabled'">
-                    <a class="page-link" th:href="@{/token-details(page=${tokenDetails.number + 1})}">Next</a>
-                </li>
-            </ul>
-        </nav>
+        <div th:if="${teslaConnected and !tokenDetails.isEmpty()}" th:replace="~{fragments/pagination :: pagination(page=${tokenDetails}, url=@{/token-details})}"></div>
 
     </main>
 
