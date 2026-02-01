@@ -1,11 +1,14 @@
 package net.icewheel.energy.application.scheduling;
 
 import java.time.Clock;
+import java.time.DayOfWeek;
 import java.time.Instant;
 import java.time.LocalTime;
 import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import net.icewheel.energy.application.scheduling.model.PowerwallSchedule;
 import net.icewheel.energy.application.scheduling.model.ScheduleEventType;
@@ -73,6 +76,8 @@ class WeatherAwareSchedulerTest {
         onPeakSchedule.setBackupPercent(20);
         onPeakSchedule.setScheduledTime(LocalTime.of(17, 0)); // 5 PM
         onPeakSchedule.setTimeZone(ZoneId.of("UTC"));
+        onPeakSchedule.setDaysOfWeek(Set.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY));
+
 
         offPeakSchedule = new PowerwallSchedule();
         offPeakSchedule.setScheduleType(ScheduleType.WEATHER_AWARE);
@@ -283,5 +288,41 @@ class WeatherAwareSchedulerTest {
         // Adjustment = (100 / 100.0) * 20 * (50 / 100.0) = 1 * 20 * 0.5 = 10
         // Expected target = 20 - 10 = 10.
         assertEquals(10, stopChargeSchedule.getBackupPercent());
+    }
+
+    @Test
+    void testCreateTemporarySchedule_skipsWeekend() {
+        // Arrange
+        // Set clock to Friday 9 PM, which is after the 5 PM on-peak start time
+        clock = Clock.fixed(Instant.parse("2025-10-10T21:00:00Z"), ZoneId.of("UTC")); // A Friday
+        weatherAwareScheduler = new WeatherAwareScheduler(userRepository, scheduleRepository, weatherForecastEvaluator, auditEventRepository, clock);
+
+        onPeakSchedule.setScheduledTime(LocalTime.of(7, 0)); // 7 AM
+        onPeakSchedule.setDaysOfWeek(Set.of(DayOfWeek.MONDAY, DayOfWeek.TUESDAY, DayOfWeek.WEDNESDAY, DayOfWeek.THURSDAY, DayOfWeek.FRIDAY));
+
+        when(userRepository.findAll()).thenReturn(List.of(user));
+        when(scheduleRepository.findAllByUser(user)).thenReturn(List.of(onPeakSchedule, offPeakSchedule));
+        when(weatherForecastEvaluator.evaluate(user)).thenReturn(new SolarForecast(0, "Stormy", Map.of())); // 100% shortfall triggers creation
+
+        // Act
+        weatherAwareScheduler.checkForBadWeather();
+
+        // Assert
+        ArgumentCaptor<PowerwallSchedule> scheduleCaptor = ArgumentCaptor.forClass(PowerwallSchedule.class);
+        verify(scheduleRepository, times(2)).save(scheduleCaptor.capture());
+
+        PowerwallSchedule stopChargeSchedule = scheduleCaptor.getAllValues().stream()
+                .filter(s -> s.getEventType() == ScheduleEventType.START_DISCHARGE)
+                .findFirst()
+                .orElseThrow();
+
+        // The logic should advance the stop time from Saturday 7 AM to Monday 7 AM.
+        // We can verify this by checking the day-of-month field in the generated cron expression.
+        String[] cronParts = stopChargeSchedule.getCronExpression().split(" ");
+        int dayOfMonth = Integer.parseInt(cronParts[3]);
+
+        // The test runs on Friday the 10th. The stop charge time would have been Saturday the 11th.
+        // The fix pushes it past Sunday the 12th to Monday the 13th.
+        assertEquals(13, dayOfMonth);
     }
 }
