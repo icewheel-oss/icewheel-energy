@@ -291,6 +291,14 @@ public class WeatherAwareScheduler {
 			stopExecutionTime = stopExecutionTime.plusDays(1);
 		}
 
+		// Why: This is the fix for the bug where a weather event on a Friday would schedule a "stop charge"
+		// event for Saturday morning, even if the schedule was only for Mon-Fri. This loop ensures
+		// that the stop event is pushed forward to the next valid day of the week according to the
+		// permanent schedule's configuration.
+		while (!onPeakSchedule.getDaysOfWeek().contains(stopExecutionTime.getDayOfWeek())) {
+			stopExecutionTime = stopExecutionTime.plusDays(1);
+		}
+
 		startChargeSchedule.setExpirationTime(stopExecutionTime.toInstant());
 		stopChargeSchedule.setExpirationTime(stopExecutionTime.toInstant());
 
