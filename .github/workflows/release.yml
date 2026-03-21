@@ -22,7 +22,7 @@ jobs:
         run: mvn -B package --file pom.xml
 
       - name: Upload JAR artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: icewheel-energy-jar
           path: target/*.jar
@@ -34,7 +34,7 @@ jobs:
     needs: build
     steps:
       - name: Download JAR artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: icewheel-energy-jar
 

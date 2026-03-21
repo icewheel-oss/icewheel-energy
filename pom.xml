@@ -164,7 +164,6 @@
 			<artifactId>jquery</artifactId>
 			<version>4.0.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.cronutils/cron-utils -->
 		<dependency>
 			<groupId>com.cronutils</groupId>
 			<artifactId>cron-utils</artifactId>
@@ -184,7 +183,6 @@
 			<artifactId>shedlock-provider-jdbc-template</artifactId>
 			<version>7.7.0</version>
 		</dependency>
-		<!-- https://mvnrepository.com/artifact/com.squareup.okhttp3/mockwebserver -->
 		<dependency>
 			<groupId>com.squareup.okhttp3</groupId>
 			<artifactId>mockwebserver</artifactId>
