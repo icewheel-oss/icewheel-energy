@@ -19,35 +19,54 @@
 
 <!DOCTYPE html>
 <html lang="en" xmlns:th="http://www.thymeleaf.org">
-<body>
-<!--
-  Reusable pagination component.
-  Parameters:
-    - page: The Page object from Spring Data.
-    - url: The base URL for the pagination links.
--->
-<div th:fragment="pagination(page, url)" th:if="${page.totalPages > 1}"
-     class="d-flex justify-content-between align-items-center mt-4">
-    <span class="text-muted small">
-        Page <strong th:text="${page.number + 1}">1</strong> of <strong th:text="${page.totalPages}">1</strong>
-        (<span th:text="${page.totalElements}">0</span> total items)
-    </span>
-    <nav aria-label="Page navigation">
-        <ul class="pagination mb-0">
+<!--/*
+ * This pagination control is designed to be reusable across different pages.
+ * It expects a Spring Data 'Page' object in the model.
+ *
+ * To use this fragment, include it in your page like this:
+ * <div th:replace="~{fragments/pagination :: pagination(page=${myPageObject}, url=@{/my-url})}"></div>
+ *
+ * @param page The Spring Data Page object.
+ * @param url The base URL for the pagination links.
+ */-->
+<th:block th:fragment="pagination(page, url)">
+    <nav th:if="${page.totalPages > 1}" aria-label="Page navigation">
+        <ul class="pagination justify-content-center">
+            <!-- First Page Link -->
             <li class="page-item" th:classappend="${page.first} ? 'disabled'">
-                <a class="page-link" th:href="@{${url}(page=${page.number - 1}, size=${page.size})}">
-                    <i class="bi bi-chevron-left"></i>
-                    <span class="d-none d-sm-inline">Previous</span>
+                <a class="page-link" th:href="@{${url}(page=0)}">
+                    <i class="bi bi-chevron-bar-left"></i> First
                 </a>
             </li>
+
+            <!-- Previous Page Link -->
+            <li class="page-item" th:classappend="${page.first} ? 'disabled'">
+                <a class="page-link" th:href="@{${url}(page=${page.number - 1})}">
+                    <i class="bi bi-chevron-left"></i>
+                </a>
+            </li>
+
+            <!-- Page Number Links -->
+            <th:block th:each="i : ${#numbers.sequence(0, page.totalPages - 1)}">
+                <li class="page-item" th:if="${i >= page.number - 2 and i <= page.number + 2}" th:classappend="${i == page.number} ? 'active'">
+                    <a class="page-link" th:href="@{${url}(page=${i})}" th:text="${i + 1}"></a>
+                </li>
+            </th:block>
+
+            <!-- Next Page Link -->
             <li class="page-item" th:classappend="${page.last} ? 'disabled'">
-                <a class="page-link" th:href="@{${url}(page=${page.number + 1}, size=${page.size})}">
-                    <span class="d-none d-sm-inline">Next</span>
+                <a class="page-link" th:href="@{${url}(page=${page.number + 1})}">
                     <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+
+            <!-- Last Page Link -->
+            <li class="page-item" th:classappend="${page.last} ? 'disabled'">
+                <a class="page-link" th:href="@{${url}(page=${page.totalPages - 1})}">
+                    Last <i class="bi bi-chevron-bar-right"></i>
                 </a>
             </li>
         </ul>
     </nav>
-</div>
-</body>
+</th:block>
 </html>

@@ -23,11 +23,13 @@ import java.util.Optional;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.icewheel.energy.domain.audit.model.TeslaAccountAuditEvent;
-import net.icewheel.energy.domain.audit.repository.TeslaAccountAuditEventRepository;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.infrastructure.modules.weather.WeatherService;
+import net.icewheel.energy.infrastructure.modules.weather.dto.WeatherWidgetDTO;
+import net.icewheel.energy.infrastructure.vendors.tesla.audit.model.TeslaAccountAuditEvent;
+import net.icewheel.energy.infrastructure.vendors.tesla.audit.repository.TeslaAccountAuditEventRepository;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaUserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
-import net.icewheel.energy.infrastructure.vendors.tesla.auth.UserService;
 import net.icewheel.energy.shared.util.DateTimeUtil;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -35,48 +37,33 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ModelAttribute;
-/**
- * A ControllerAdvice to add globally available attributes to the model for all controllers.
- * This ensures that common data needed by templates (like the header) is always present
- * without needing to be explicitly added in every controller method.
- */
-// Why: This advice is targeted only at @Controller classes. This is a performance and security best practice,
-// as it prevents these model attributes from being unnecessarily processed for @RestController API endpoints.
+
 @ControllerAdvice(annotations = Controller.class)
 @RequiredArgsConstructor
 @Slf4j
 public class GlobalModelAttributeAdvice {
 
-    private final UserService userService;
-	private final TokenService tokenService;
+    private final TeslaUserService teslaUserService;
+    private final TokenService tokenService;
     private final TeslaAccountAuditEventRepository auditEventRepository;
+    private final WeatherService weatherService;
 
-    /**
-     * Adds the 'teslaConnected' boolean flag to the model for every request.
-     * The UI uses this flag to conditionally show or hide Tesla-specific navigation links.
-     * A user is considered "connected" if the application can retrieve a valid access token for them.
-     *
-     * @param principal The currently authenticated user.
-     * @return true if the user has a valid Tesla token, false otherwise.
-     */
     @ModelAttribute("teslaConnected")
     public boolean addTeslaConnectionStatus(@AuthenticationPrincipal OAuth2User principal) {
         if (principal == null) {
             return false;
         }
 
-		User user = userService.findOrCreateUser(principal);
+        User user = teslaUserService.findOrCreateUser(principal);
 
-		// Check 1: A user must have a token that is not expired.
-		// This is a lightweight check that doesn't trigger a network refresh.
-		boolean hasValidToken = tokenService.isUserConnected(user);
+        // This method now correctly checks for a valid refresh token, which is the
+        // best indicator of a persistent user connection for UI purposes.
+        boolean hasValidToken = tokenService.isUserConnected(user);
 
         if (!hasValidToken) {
             return false;
         }
 
-        // Check 2: To be considered connected, the last explicit action must not be a disconnect.
-        // This prevents a state where a valid token might exist but the user has chosen to disconnect.
         Optional<TeslaAccountAuditEvent> lastEvent = auditEventRepository.findTopByUserOrderByTimestampDesc(user);
 
         if (lastEvent.isPresent() && lastEvent.get().getAction() == TeslaAccountAuditEvent.AuditAction.TESLA_ACCOUNT_DISCONNECT) {
@@ -84,16 +71,57 @@ public class GlobalModelAttributeAdvice {
             return false;
         }
 
-        // If they have a token and the last action wasn't a disconnect, they are connected.
         return true;
     }
 
+    @ModelAttribute("dateTimeUtil")
+    public DateTimeUtil dateTimeUtil() {
+        return new DateTimeUtil();
+    }
+	@ModelAttribute("userName")
+	public String addUserName(@AuthenticationPrincipal OAuth2User principal) {
+		if (principal == null) {
+			return "Guest";
+		}
+		User user = teslaUserService.findOrCreateUser(principal);
+		return user.getName();
+	}
+
 	/**
-	 * Adds a {@link DateTimeUtil} instance to the model for every request.
-	 * This makes the utility available for formatting dates and times in all Thymeleaf templates.
+	 * Adds the user's timezone to the model.
+	 * <p>
+	 * This method retrieves the user's timezone from their preferences. If the user
+	 * has not set a timezone preference, it falls back to the timezone provided by
+	 * the OAuth2 provider. If that is also not available, it defaults to "UTC".
+	 * This ensures that a valid timezone is always available in the model for
+	 * rendering timestamps in a user-friendly way.
+	 *
+	 * @param principal The authenticated user principal.
+	 * @return The user's timezone string.
 	 */
-	@ModelAttribute("dateTimeUtil")
-	public DateTimeUtil dateTimeUtil() {
-		return new DateTimeUtil();
+	@ModelAttribute("userTimezone")
+	public String addUserTimezone(@AuthenticationPrincipal OAuth2User principal) {
+		if (principal == null) {
+			return "UTC";
+		}
+		User user = teslaUserService.findOrCreateUser(principal);
+		if (user.getPreference() != null && user.getPreference().getTimezone() != null) {
+			return user.getPreference().getTimezone();
+		}
+		// Fallback to the timezone provided by the OAuth2 provider, if available.
+		return principal.getAttribute("zoneinfo") != null ? principal.getAttribute("zoneinfo") : "UTC";
+	}
+
+	@ModelAttribute("weatherWidget")
+	public WeatherWidgetDTO addWeatherWidgetData(@AuthenticationPrincipal OAuth2User principal) {
+		if (principal == null) {
+			return null;
+		}
+		User user = teslaUserService.findOrCreateUser(principal);
+		if (user.getPreference() != null && user.getPreference().getZipCode() != null) {
+			return weatherService.getWeatherWidgetData(user.getPreference().getZipCode()).orElse(null);
+		} else {
+			return new WeatherWidgetDTO(null, "Set Zip");
+		}
 	}
 }

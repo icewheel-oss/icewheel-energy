@@ -38,15 +38,16 @@ import com.nimbusds.jwt.SignedJWT;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.api.web.viewmodel.TokenDetailView;
-import net.icewheel.energy.config.TokenRefreshConfig;
-import net.icewheel.energy.domain.auth.model.User;
-import net.icewheel.energy.infrastructure.repository.auth.UserRepository;
+import net.icewheel.energy.application.config.TokenRefreshConfig;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.application.user.repository.UserRepository;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.Token;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TokenResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.UserMeResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.repository.TokenRepository;
-
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -137,24 +138,33 @@ public class TokenServiceImpl implements TokenService {
 		try {
 			SignedJWT signedJWT = SignedJWT.parse(tokenResponse.getAccessToken());
 			JWTClaimsSet claimsSet = signedJWT.getJWTClaimsSet();
+
+			// Set access token expiration from 'exp' claim
 			Date expirationTime = claimsSet.getExpirationTime();
 			if (expirationTime != null) {
 				token.setExpiration(expirationTime.toInstant().getEpochSecond());
-			}
-			else {
-				log.warn("JWT for user {} has no 'exp' claim. Falling back to calculated expiration.", token.getUser()
-						.getId());
+			} else {
+				log.warn("JWT for user {} has no 'exp' claim. Falling back to calculated expiration.", token.getUser().getId());
 				token.setExpiration(Instant.now().getEpochSecond() + tokenResponse.getExpiresIn());
 			}
-		}
-		catch (ParseException e) {
-			log.warn("Could not parse access token to get 'exp' claim, falling back to calculated expiration. Error: {}", e.getMessage());
-			token.setExpiration(Instant.now().getEpochSecond() + tokenResponse.getExpiresIn());
-		}
 
-        // As per Tesla docs, refresh token is valid for a long time.
-        // Let's use a reasonable default like 90 days.
-		token.setRefreshTokenExpiration(Instant.now().getEpochSecond() + 90L * 24 * 60 * 60);
+			// Set refresh token expiration from 'iat' claim
+			Date issuedAtTime = claimsSet.getIssueTime();
+			if (issuedAtTime != null) {
+				// Why: The refresh token expires 90 days after it is issued.
+				// We use the 'iat' (issued at) claim from the JWT to calculate the exact expiration time.
+				token.setRefreshTokenExpiration(issuedAtTime.toInstant().getEpochSecond() + (90L * 24 * 60 * 60));
+			} else {
+				log.warn("JWT for user {} has no 'iat' claim. Falling back to calculated refresh token expiration.", token.getUser().getId());
+				// As per Tesla docs, refresh token is valid for a long time.
+				// Let's use a reasonable default like 90 days.
+				token.setRefreshTokenExpiration(Instant.now().getEpochSecond() + (90L * 24 * 60 * 60));
+			}
+		} catch (ParseException e) {
+			log.warn("Could not parse access token to get claims, falling back to calculated expiration. Error: {}", e.getMessage());
+			token.setExpiration(Instant.now().getEpochSecond() + tokenResponse.getExpiresIn());
+			token.setRefreshTokenExpiration(Instant.now().getEpochSecond() + (90L * 24 * 60 * 60));
+		}
         token.setTokenType(tokenResponse.getTokenType());
         token.setScope(tokenResponse.getScope());
     }
@@ -240,12 +250,30 @@ public class TokenServiceImpl implements TokenService {
 	 * @return true if the user has a valid token, false otherwise.
 	 */
 	@Override
+	@Transactional
 	public boolean isUserConnected(User user) {
 		// This provides a quick check for the UI without triggering a network call.
 		// It checks if a token exists and if its expiration time is in the future.
-        return tokenRepository.findFirstByUserOrderByCreatedAtDesc(user)
-				.map(token -> token.getExpiresAt().isAfter(Instant.now()))
-				.orElse(false);
+		return tokenRepository.findFirstByUserOrderByCreatedAtDesc(user).map(token -> {
+			// First, check if the access token is still valid.
+			if (token.getExpiresAt().isAfter(Instant.now())) {
+				return true;
+			}
+			// If the access token is expired, check if the refresh token is still valid and try to refresh.
+			if (token.getRefreshTokenExpiration() != null && Instant.ofEpochSecond(token.getRefreshTokenExpiration()).isAfter(Instant.now())) {
+				try {
+					// Attempt to refresh the token to confirm connectivity.
+					String accessToken = getValidAccessToken(user.getId());
+					return accessToken != null && !accessToken.isBlank();
+				}
+				catch (IllegalStateException e) {
+					log.warn("User {} is not connected: {}", user.getId(), e.getMessage());
+					return false;
+				}
+			}
+			// If both access and refresh tokens are expired, the user is not connected.
+			return false;
+		}).orElse(false);
 	}
 
 	/**
@@ -294,10 +322,10 @@ public class TokenServiceImpl implements TokenService {
 	 * @return A list of TokenDetailView objects, each containing detailed information about a token.
 	 */
 	@Override
-	public List<TokenDetailView> getTokenDetailsForUser(User user) {
-		List<Token> tokens = tokenRepository.findByUserOrderByCreatedAtDesc(user);
+	public Page<TokenDetailView> getTokenDetailsForUser(User user, Pageable pageable) {
+		Page<Token> tokens = tokenRepository.findByUserOrderByCreatedAtDesc(user, pageable);
 
-		return tokens.stream().map(token -> {
+		return tokens.map(token -> {
 			TokenDetailView view = new TokenDetailView();
 			view.setToken(token);
 			try {
@@ -328,7 +356,7 @@ public class TokenServiceImpl implements TokenService {
 				view.setScopes(Collections.emptyList());
 			}
 			return view;
-		}).collect(Collectors.toList());
+		});
 	}
 
 	/**

@@ -29,14 +29,15 @@ import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.api.rest.dto.ScheduleRequest;
 import net.icewheel.energy.application.scheduling.ImportResult;
 import net.icewheel.energy.application.scheduling.PowerwallScheduleService;
-import net.icewheel.energy.domain.auth.model.User;
-import net.icewheel.energy.domain.energy.exception.ScheduleImportException;
-import net.icewheel.energy.infrastructure.vendors.tesla.auth.UserService;
+import net.icewheel.energy.application.scheduling.exception.ScheduleImportException;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaUserService;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,22 +51,23 @@ import org.springframework.web.multipart.MultipartFile;
 @RequestMapping("/api/schedules")
 @RequiredArgsConstructor
 @Slf4j
+@PreAuthorize("isAuthenticated()")
 public class ScheduleApiController {
 
 	private final PowerwallScheduleService scheduleService;
-	private final UserService userService;
+	private final TeslaUserService teslaUserService;
 	private final ObjectMapper objectMapper;
 
 	@GetMapping("/export")
 	public ResponseEntity<List<ScheduleRequest>> exportSchedules(@AuthenticationPrincipal OAuth2User principal) {
-		User user = userService.findOrCreateUser(principal);
+		User user = teslaUserService.findOrCreateUser(principal);
 		return ResponseEntity.ok().header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"schedules.json\"")
 				.body(scheduleService.getSchedulesForExport(user));
 	}
 
 	@PostMapping("/import")
 	public ResponseEntity<String> importSchedules(@RequestParam("file") MultipartFile file, @AuthenticationPrincipal OAuth2User principal) {
-		User user = userService.findOrCreateUser(principal);
+		User user = teslaUserService.findOrCreateUser(principal);
 
 		if (file.isEmpty()) {
 			return ResponseEntity.badRequest().body("Import failed: Please select a file to upload.");

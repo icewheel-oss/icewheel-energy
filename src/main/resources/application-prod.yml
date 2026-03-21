@@ -1,0 +1,12 @@
+spring:
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: none
+server:
+  servlet:
+    session:
+      cookie:
+        secure: true

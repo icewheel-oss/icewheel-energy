@@ -17,3 +17,28 @@
  *
  */
 
+.weather-widget-container {
+    display: flex;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .weather-widget-container {
+        flex-direction: column;
+        align-items: flex-end;
+    }
+
+    #zip-code-form {
+        margin-top: 0.5rem;
+    }
+}
+
+
+#zip-code-input {
+    width: 100px;
+}
+
+#zip-code-button {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.875rem;
+}

@@ -26,19 +26,9 @@
 <nav th:replace="~{fragments/header :: navbar(activePage='products')}"></nav>
 
 <main class="container my-5 flex-grow-1">
-
-    <!-- Case: Tesla account is NOT connected -->
-    <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
-        <i class="bi bi-ev-station-fill display-3 text-primary"></i>
-        <h1 class="display-5 fw-bold mt-3">View Charge History</h1>
-        <p class="col-lg-8 mx-auto fs-5 text-muted">
-            Connect your Tesla account to see detailed charge session history for your system.
-        </p>
-        <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
-            <i class="bi bi-plug-fill me-2"></i>
-            Securely Connect to Tesla
-        </a>
-    </div>
+    <th:block th:if="${!teslaConnected}">
+        <div th:replace="~{fragments/tesla-connect :: tesla-connect-prompt}"></div>
+    </th:block>
 
     <!-- Case: Site info is available -->
     <div th:if="${teslaConnected and siteInfo != null}">

@@ -20,7 +20,7 @@
 package net.icewheel.energy.api.admin;
 
 import lombok.RequiredArgsConstructor;
-import net.icewheel.energy.infrastructure.security.KeypairService;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.security.KeypairService;
 
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

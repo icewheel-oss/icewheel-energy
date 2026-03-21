@@ -24,12 +24,12 @@ import java.util.UUID;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import net.icewheel.energy.domain.audit.model.TeslaAccountAuditEvent;
-import net.icewheel.energy.domain.audit.repository.TeslaAccountAuditEventRepository;
-import net.icewheel.energy.domain.auth.model.User;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.infrastructure.vendors.tesla.audit.model.TeslaAccountAuditEvent;
+import net.icewheel.energy.infrastructure.vendors.tesla.audit.repository.TeslaAccountAuditEventRepository;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaAuthService;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaUserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TokenService;
-import net.icewheel.energy.infrastructure.vendors.tesla.auth.UserService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TeslaTokenExchangeResult;
 
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -44,13 +44,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class TeslaController {
 
     private final TeslaAuthService teslaAuthService;
-    private final UserService userService;
+    private final TeslaUserService teslaUserService;
 	private final TokenService tokenService;
     private final TeslaAccountAuditEventRepository auditEventRepository;
 
-	public TeslaController(TeslaAuthService teslaAuthService, UserService userService, TokenService tokenService, TeslaAccountAuditEventRepository auditEventRepository) {
+	public TeslaController(TeslaAuthService teslaAuthService, TeslaUserService teslaUserService, TokenService tokenService, TeslaAccountAuditEventRepository auditEventRepository) {
         this.teslaAuthService = teslaAuthService;
-        this.userService = userService;
+        this.teslaUserService = teslaUserService;
 		this.tokenService = tokenService;
         this.auditEventRepository = auditEventRepository;
     }
@@ -58,7 +58,7 @@ public class TeslaController {
     @GetMapping("/url")
     public void getAuthUrl(@AuthenticationPrincipal OAuth2User principal, HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (principal == null) {
-            response.sendRedirect("/login");
+            response.sendRedirect("/login.html");
             return;
         }
 
@@ -73,7 +73,7 @@ public class TeslaController {
                                @RequestParam(name = "error", required = false) String error, @RequestParam(name = "error_description", required = false) String errorDescription, 
                                @AuthenticationPrincipal OAuth2User principal, HttpServletRequest request, HttpServletResponse response) throws IOException {
         if (principal == null) {
-            response.sendRedirect("/login");
+            response.sendRedirect("/login.html");
             return;
         }
 
@@ -92,7 +92,7 @@ public class TeslaController {
             return;
         }
 
-        User user = userService.findOrCreateUser(principal);
+        User user = teslaUserService.findOrCreateUser(principal);
 
 		// The auth service exchanges the code, but the token service is responsible for saving it.
 		TeslaTokenExchangeResult result = teslaAuthService.exchangeCodeForToken(code);
@@ -109,12 +109,12 @@ public class TeslaController {
     @GetMapping("/disconnect")
     public void disconnect(@AuthenticationPrincipal OAuth2User principal, HttpServletResponse response) throws IOException {
         if (principal == null) {
-            response.sendRedirect("/login");
+            response.sendRedirect("/login.html");
             return;
         }
 
-        User user = userService.findOrCreateUser(principal);
-        userService.disconnectTeslaAccount(user);
+        User user = teslaUserService.findOrCreateUser(principal);
+        teslaUserService.disconnectTeslaAccount(user);
 
         TeslaAccountAuditEvent event = new TeslaAccountAuditEvent();
         event.setUser(user);

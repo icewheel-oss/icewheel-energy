@@ -9,6 +9,7 @@ This documentation is divided into the following sections:
 * **[Architecture](./architecture/overview.md)**: For developers interested in the technical details, this section
   describes the application's architecture and design.
 * **[User Guide](./user-guide/connecting-accounts.md)**: This section provides guidance on how to use the application.
+* **[Troubleshooting](./troubleshooting/db-connection.md)**: This section contains guides for troubleshooting common issues.
 
 ## About the Project
 

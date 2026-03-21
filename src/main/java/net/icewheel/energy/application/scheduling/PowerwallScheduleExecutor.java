@@ -31,10 +31,12 @@ import com.cronutils.parser.CronParser;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.application.scheduling.annotation.WithTeslaApiRetries;
-import net.icewheel.energy.domain.energy.model.PowerwallSchedule;
-import net.icewheel.energy.domain.energy.model.ScheduleExecutionHistory;
-import net.icewheel.energy.infrastructure.repository.energy.PowerwallScheduleRepository;
-import net.icewheel.energy.infrastructure.repository.energy.ScheduleExecutionHistoryRepository;
+import net.icewheel.energy.application.scheduling.model.PowerwallSchedule;
+import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
+import net.icewheel.energy.application.scheduling.repository.PowerwallScheduleRepository;
+import net.icewheel.energy.application.scheduling.repository.ScheduleExecutionHistoryRepository;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.application.user.repository.UserRepository;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 
@@ -55,6 +57,7 @@ public class PowerwallScheduleExecutor {
     private final PowerwallScheduleRepository scheduleRepository;
     private final ScheduleExecutionHistoryRepository historyRepository;
     private final TeslaEnergyService teslaEnergyService;
+    private final UserRepository userRepository;
 	private final CronParser cronParser;
 	private final Clock clock;
     private final CronDescriptor descriptor = CronDescriptor.instance(Locale.US); // For English descriptions
@@ -154,6 +157,14 @@ public class PowerwallScheduleExecutor {
                     schedule.getName(), schedule.getId(), e.getMessage(), e);
         } finally {
             historyRepository.save(history);
+            if (schedule.isTemporary()) {
+                schedule.setEnabled(false);
+                scheduleRepository.save(schedule);
+                User user = schedule.getUser();
+                user.getPreference().setForcedChargingActive(false);
+                userRepository.save(user);
+                log.info("Disabled temporary schedule '{}' (ID: {}) after execution.", schedule.getName(), schedule.getId());
+            }
         }
     }
 }

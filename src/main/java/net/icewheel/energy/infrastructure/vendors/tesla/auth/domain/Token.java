@@ -23,6 +23,7 @@ import java.io.Serializable;
 import java.time.Instant;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonBackReference;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -32,8 +33,8 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
-import net.icewheel.energy.domain.auth.model.User;
-import net.icewheel.energy.domain.shared.model.Auditable;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.shared.model.Auditable;
 
 /**
  * Represents a Tesla OAuth token stored in the database.
@@ -59,6 +60,7 @@ public class Token extends Auditable implements Serializable {
 	 */
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
+    @JsonBackReference
     private User user;
 
     /**

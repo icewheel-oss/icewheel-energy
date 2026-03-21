@@ -44,6 +44,7 @@ import net.icewheel.energy.infrastructure.vendors.tesla.dto.SiteInfoResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.TelemetryHistoryApiResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.dto.TelemetryHistoryResponse;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
@@ -52,6 +53,9 @@ import org.springframework.web.client.RestClientException;
 @RequiredArgsConstructor
 @Slf4j
 public class TeslaEnergyServiceImpl implements TeslaEnergyService {
+
+	@Value("${app.tesla.api.mock-enabled:false}")
+	private boolean mockEnabled;
 
 	private final RestClient restClient;
 	private final TeslaApiConfig teslaApiConfig;
@@ -214,6 +218,10 @@ public class TeslaEnergyServiceImpl implements TeslaEnergyService {
 
 	@Override
 	public Boolean setBackupReserve(String userId, String siteId, int backupPercent) {
+		if (mockEnabled) {
+			log.info("[MOCK MODE] Skipping setBackupReserve call for site {}. Would have set backup to {}%.", siteId, backupPercent);
+			return true;
+		}
 		String accessToken;
 		try {
 			accessToken = tokenService.getValidAccessToken(userId);
@@ -249,6 +257,25 @@ public class TeslaEnergyServiceImpl implements TeslaEnergyService {
 			throw new IllegalStateException("Could not retrieve site info for site " + siteId + " to check backup reserve.");
 		}
 		return siteInfo.getBackupReservePercent();
+	}
+
+	@Override
+	public LiveStatusResponse getEnrichedLiveStatus(String userId, String siteId) {
+		LiveStatusResponse liveStatus = getLiveStatus(userId, siteId);
+		if (liveStatus == null) {
+			return null;
+		}
+
+		// Enhance the response with a calculated energy_left value
+		SiteInfoResponse siteInfo = getSiteInfo(userId, siteId);
+		if (siteInfo != null && siteInfo.getBatteryCount() > 0 && siteInfo.getNameplatePower() > 0) {
+			double totalEnergy = (double) siteInfo.getNameplatePower() * siteInfo.getBatteryCount();
+			if (totalEnergy > 0 && liveStatus.getPercentageCharged() > 0) {
+				double calculatedEnergyLeft = totalEnergy * (liveStatus.getPercentageCharged() / 100.0);
+				liveStatus.setEnergyLeft(calculatedEnergyLeft);
+			}
+		}
+		return liveStatus;
 	}
 
 	@Override

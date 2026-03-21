@@ -33,8 +33,16 @@ public interface TeslaEnergyService {
 
 	SiteInfoResponse getSiteInfo(String userId, String siteId);
 
-	LiveStatusResponse getLiveStatus(String userId, String siteId);
-
+	    LiveStatusResponse getLiveStatus(String userId, String siteId);
+	
+	    /**
+	     * Retrieves the live status for a given site and enriches it with calculated values.
+	     *
+	     * @param userId The user ID.
+	     * @param siteId The site ID.
+	     * @return The enriched live status, or null if an error occurs.
+	     */
+	    LiveStatusResponse getEnrichedLiveStatus(String userId, String siteId);
 	EnergyHistoryResponse getEnergyHistory(String userId, String siteId, String period);
 
 	List<Product> getProducts(String userId);

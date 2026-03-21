@@ -35,6 +35,19 @@
         </a>
     </div>
 
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title">Filter by Action</h5>
+            <form th:action="@{/schedules/history}" method="get" class="d-flex flex-wrap align-items-center">
+                <div th:each="a : ${allActions}" class="form-check me-3">
+                    <input class="form-check-input" type="checkbox" name="action" th:value="${a}" th:id="${a}" th:checked="${selectedActions.contains(a.name())}">
+                    <label class="form-check-label" th:for="${a}" th:text="${#strings.capitalizeWords(a.name().toLowerCase().replace('_', ' '))}"></label>
+                </div>
+                <button type="submit" class="btn btn-primary ms-auto">Filter</button>
+            </form>
+        </div>
+    </div>
+
     <!-- Empty state -->
     <div th:if="${historyPage.empty}" class="text-center p-5 bg-body-tertiary rounded-3">
         <i class="bi bi-clock-history display-3 text-secondary"></i>
@@ -54,7 +67,7 @@
                     <i class="bi me-2" th:classappend="${event.eventType == 'CREATED' ? 'bi-plus-circle-fill text-success' : event.eventType == 'UPDATED' ? 'bi-pencil-fill text-info' : 'bi-trash-fill text-danger'}"></i>
                     <span th:text="${event.scheduleName}">Schedule Name</span>
                 </h5>
-                <small class="text-muted" th:text="${#temporals.format(event.timestamp, 'MMM dd, yyyy HH:mm:ss')}"></small>
+                <small class="text-muted" th:text="${#temporals.format(event.timestamp.atZone(T(java.time.ZoneId).of(userTimezone)), 'MMM dd, yyyy HH:mm:ss z', #locale)}"></small>
             </div>
             <div class="ps-4 pt-2">
                 <!-- Display a detailed list of changes for UPDATE events -->
@@ -77,13 +90,13 @@
                 </div>
             </div>
             <small class="text-muted mt-2 d-block">
-                <span class="badge" th:classappend="${event.eventType == 'CREATED' ? 'bg-primary-subtle text-primary-emphasis' : event.eventType == 'UPDATED' ? 'bg-info-subtle text-info-emphasis' : event.eventType == 'DELETED' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'}" th:text="${event.eventType}"></span>
+                <span class="badge" th:classappend="${event.eventType == 'CREATED' ? 'bg-primary-subtle text-primary-emphasis' : event.eventType == 'UPDATED' ? 'bg-info-subtle text-info-emphasis' : event.eventType == 'DELETED' ? 'bg-danger-subtle text-danger-emphasis' : 'bg-secondary-subtle text-secondary-emphasis'}" th:text="${#strings.capitalizeWords(event.eventType.toLowerCase().replace('_', ' '))}"></span>
             </small>
         </div>
     </div>
 
     <!-- Pagination Controls -->
-    <div th:replace="~{fragments/pagination :: pagination(page=${historyPage}, url='/schedules/history')}"></div>
+    <div th:replace="~{fragments/pagination :: pagination(page=${historyPage}, url='/schedules/history', statuses=null, actions=${selectedActions})}"></div>
 </main>
 
 <footer th:replace="~{fragments/footer :: page_footer}"></footer>

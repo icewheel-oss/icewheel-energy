@@ -30,10 +30,15 @@ import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.icewheel.energy.api.rest.dto.ScheduleResponse;
-import net.icewheel.energy.domain.auth.model.User;
-import net.icewheel.energy.domain.energy.model.ReconciliationMode;
-import net.icewheel.energy.domain.energy.model.ScheduleExecutionHistory;
-import net.icewheel.energy.infrastructure.repository.auth.UserRepository;
+import net.icewheel.energy.application.scheduling.model.PowerwallSchedule;
+import net.icewheel.energy.application.scheduling.model.ReconciliationMode;
+import net.icewheel.energy.application.scheduling.model.ScheduleEventType;
+import net.icewheel.energy.application.scheduling.model.ScheduleExecutionHistory;
+import net.icewheel.energy.application.scheduling.model.ScheduleType;
+import net.icewheel.energy.application.scheduling.repository.PowerwallScheduleRepository;
+import net.icewheel.energy.application.scheduling.repository.ScheduleExecutionHistoryRepository;
+import net.icewheel.energy.application.user.model.User;
+import net.icewheel.energy.application.user.repository.UserRepository;
 import net.icewheel.energy.infrastructure.vendors.tesla.services.TeslaEnergyService;
 import net.javacrumbs.shedlock.spring.annotation.SchedulerLock;
 
@@ -41,10 +46,22 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * This service acts as a self-healing guardian for Powerwall backup settings.
- * It regularly checks if a Powerwall's current backup reserve percentage matches the active schedule.
- * If a discrepancy is found (e.g., due to a missed schedule, manual override, or application downtime),
- * this service automatically corrects the setting to align with the user's intended configuration.
+ * Acts as the "Enforcer" in the scheduling system. This service is a self-healing guardian
+ * that ensures the Powerwall's actual state always matches the desired state defined by the
+ * currently active schedule.
+ * <p>
+ * It runs frequently (every 15 minutes by default) to perform the following check:
+ * <ol>
+ *     <li>Identify the currently active schedule for each user.</li>
+ *     <li>Determine the backup reserve percentage that *should* be set according to that schedule.</li>
+ *     <li>Compare this desired state with the *actual* backup reserve reported by the Powerwall.</li>
+ *     <li>If there is a mismatch, it sends a command to correct the Powerwall's state.</li>
+ * </ol>
+ * This component is purely reactive and focuses on state enforcement. It does not create or
+ * modify schedules itself. For the proactive, planning part of the system, see the
+ * {@link WeatherAwareScheduler}.
+ *
+ * @see WeatherAwareScheduler
  */
 @Component
 @RequiredArgsConstructor
@@ -54,8 +71,8 @@ public class PowerwallStateReconciler {
 	private final PowerwallScheduleService scheduleService;
 	private final TeslaEnergyService teslaEnergyService;
 	private final UserRepository userRepository;
-	private final net.icewheel.energy.infrastructure.repository.energy.ScheduleExecutionHistoryRepository historyRepository;
-	private final net.icewheel.energy.infrastructure.repository.energy.PowerwallScheduleRepository powerwallScheduleRepository;
+	private final ScheduleExecutionHistoryRepository historyRepository;
+	private final PowerwallScheduleRepository powerwallScheduleRepository;
 	// Why: A Clock is injected instead of using ZonedDateTime.now() directly. This makes the class
 	// highly testable, as the clock can be replaced with a fixed or manipulated version in tests
 	// to verify behavior at specific moments in time without changing the system clock.
@@ -113,6 +130,20 @@ public class PowerwallStateReconciler {
 			}
 		}
 		log.info("One-time Powerwall state reconciliation on startup finished. Checked {} users.", allUsers.size());
+	}
+
+	/**
+	 * Triggers an ad-hoc reconciliation for a single user.
+	 * This is useful for ensuring state is correct immediately after a significant change, like the creation of a temporary weather schedule.
+	 * @param user The user to reconcile.
+	 */
+	public void reconcileUser(User user) {
+		log.info("Triggering ad-hoc reconciliation for user {}", user.getId());
+		List<ScheduleResponse> schedules = scheduleService.findSchedulesByUser(user);
+		if (!schedules.isEmpty()) {
+			// We can reuse the CONTINUOUS type here, as the logging and logic are appropriate.
+			reconcilePowerwallStateForUser(user, schedules, ScheduleExecutionHistory.ExecutionType.RECONCILIATION_CONTINUOUS);
+		}
 	}
 
 	/**
@@ -174,12 +205,12 @@ public class PowerwallStateReconciler {
 		if ("on-peak".equals(activePeriod)) {
 			expectedBackupPercent = Collections.min(targets);
 			winningSchedule = activeSchedules.stream().filter(s -> s.getOnPeakBackupPercent() == expectedBackupPercent)
-					.findFirst().orElse(activeSchedules.get(0));
+					.findFirst().orElse(activeSchedules.getFirst());
 		}
 		else { // off-peak
 			expectedBackupPercent = Collections.max(targets);
 			winningSchedule = activeSchedules.stream().filter(s -> s.getOffPeakBackupPercent() == expectedBackupPercent)
-					.findFirst().orElse(activeSchedules.get(0));
+					.findFirst().orElse(activeSchedules.getFirst());
 		}
 
 		int actualBackupPercent;
@@ -192,16 +223,41 @@ public class PowerwallStateReconciler {
 		}
 
 		try {
-			if (actualBackupPercent != expectedBackupPercent) {
+			boolean shouldReconcile = false;
+			String reconciliationDecisionReason = "";
+
+			if ("on-peak".equals(activePeriod)) {
+				if (actualBackupPercent > expectedBackupPercent) {
+					log.info("On-peak reconciliation: actual backup reserve ({}) is higher than scheduled ({}). Overriding.", actualBackupPercent, expectedBackupPercent);
+					shouldReconcile = true;
+				} else if (actualBackupPercent < expectedBackupPercent) {
+					reconciliationDecisionReason = String.format("Skipping reconciliation: User has manually set backup reserve lower (%d%%) than scheduled (%d%%) during on-peak.", actualBackupPercent, expectedBackupPercent);
+				}
+			} else { // off-peak
+				if (actualBackupPercent < expectedBackupPercent) {
+					log.info("Off-peak reconciliation: actual backup reserve ({}) is lower than scheduled ({}). Overriding.", actualBackupPercent, expectedBackupPercent);
+					shouldReconcile = true;
+				} else if (actualBackupPercent > expectedBackupPercent) {
+					reconciliationDecisionReason = String.format("Skipping reconciliation: User has manually set backup reserve higher (%d%%) than scheduled (%d%%) during off-peak.", actualBackupPercent, expectedBackupPercent);
+				}
+			}
+
+			if (shouldReconcile) {
 				log.warn("State mismatch for site {} (user {}). Optimal: {}%, Actual: {}%. Reconciling...", winningSchedule.getEnergySiteId(), user.getId(), expectedBackupPercent, actualBackupPercent);
 				boolean success = teslaEnergyService.setBackupReserve(user.getId(), String.valueOf(winningSchedule.getEnergySiteId()), expectedBackupPercent);
 				if (success) {
 					String details;
-					if ("on-peak".equals(activePeriod)) {
-						details = String.format("Automatic correction for schedule '%s' during its on-peak window (%s - %s). The backup reserve was at %d%% and has been corrected to the scheduled %d%%.", winningSchedule.getName(), formatTime(winningSchedule.getStartTime()), formatTime(winningSchedule.getEndTime()), actualBackupPercent, expectedBackupPercent);
-					}
-					else { // off-peak
-						details = String.format("Automatic correction during an off-peak period. The backup reserve was at %d%% and has been corrected to the scheduled %d%% (based on schedule '%s').", actualBackupPercent, expectedBackupPercent, winningSchedule.getName());
+					if (winningSchedule.getScheduleType() == ScheduleType.WEATHER_AWARE) {
+						// The detailed reason is logged in the ScheduleAuditEvent (Change History).
+						// This log entry focuses on the action taken.
+						details = String.format("Automatic correction for weather-aware schedule '%s'. Backup reserve was at %d%% and has been corrected to the weather-adjusted target of %d%%.", winningSchedule.getName(), actualBackupPercent, expectedBackupPercent);
+					} else {
+						if ("on-peak".equals(activePeriod)) {
+							details = String.format("Automatic correction for schedule '%s' during its on-peak window (%s - %s). The backup reserve was at %d%% and has been corrected to the scheduled %d%%.", winningSchedule.getName(), formatTime(winningSchedule.getStartTime()), formatTime(winningSchedule.getEndTime()), actualBackupPercent, expectedBackupPercent);
+						}
+						else { // off-peak
+							details = String.format("Automatic correction during an off-peak period. The backup reserve was at %d%% and has been corrected to the scheduled %d%% (based on schedule '%s').", actualBackupPercent, expectedBackupPercent, winningSchedule.getName());
+						}
 					}
 					saveReconciliationHistoryEntry(user, winningSchedule, activePeriod, details, ScheduleExecutionHistory.ExecutionStatus.SUCCESS, executionType);
 				}
@@ -211,10 +267,25 @@ public class PowerwallStateReconciler {
 					saveReconciliationHistoryEntry(user, winningSchedule, activePeriod, details, ScheduleExecutionHistory.ExecutionStatus.FAILURE, executionType);
 				}
 			}
-			else {
-				String details = String.format("Automatic check during an %s period for schedule '%s'. The Powerwall's backup reserve is already correctly set to %d%%. No action was needed.", activePeriod, winningSchedule.getName(), expectedBackupPercent);
-				saveReconciliationHistoryEntry(user, winningSchedule, activePeriod, details, ScheduleExecutionHistory.ExecutionStatus.SKIPPED, executionType);
-			}
+			else if (actualBackupPercent == expectedBackupPercent) {
+				String details;
+				if (winningSchedule.getScheduleType() == ScheduleType.WEATHER_AWARE) {
+					// The detailed reason is logged in the ScheduleAuditEvent (Change History).
+					// This log entry confirms the state is correct according to the weather plan.
+					details = String.format("Automatic check for weather-aware schedule '%s'. The backup reserve of %d%% already matches the weather-adjusted target. No action was needed.", winningSchedule.getName(), expectedBackupPercent);
+				}
+				else {
+					details = String.format(
+							"Automatic check during an %s period for schedule '%s'. The Powerwall's backup reserve is already correctly set to %d%%. No action was needed.",
+							activePeriod, winningSchedule.getName(), expectedBackupPercent);
+				}
+				saveReconciliationHistoryEntry(user, winningSchedule, activePeriod, details,
+						ScheduleExecutionHistory.ExecutionStatus.SKIPPED, executionType);
+			} else { // User override case
+                log.info(reconciliationDecisionReason);
+                saveReconciliationHistoryEntry(user, winningSchedule, activePeriod, reconciliationDecisionReason,
+                        ScheduleExecutionHistory.ExecutionStatus.SKIPPED, executionType);
+            }
 		}
 		catch (Exception e) {
 			log.error("Failed to save reconciliation history for user {}: {}", user.getId(), e.getMessage(), e);
@@ -266,9 +337,9 @@ public class PowerwallStateReconciler {
 			log.warn("Could not save reconciliation history. No schedules found for group ID: {}", schedule.getScheduleGroupId());
 			return;
 		}
-		net.icewheel.energy.domain.energy.model.PowerwallSchedule pws;
+		PowerwallSchedule pws;
 		if (activePeriod != null) {
-			net.icewheel.energy.domain.energy.model.ScheduleEventType eventType = "on-peak".equals(activePeriod) ? net.icewheel.energy.domain.energy.model.ScheduleEventType.START_DISCHARGE : net.icewheel.energy.domain.energy.model.ScheduleEventType.START_CHARGE;
+			ScheduleEventType eventType = "on-peak".equals(activePeriod) ? ScheduleEventType.START_DISCHARGE : ScheduleEventType.START_CHARGE;
 			pws = schedules.stream().filter(s -> s.getEventType() == eventType).findFirst().orElse(null);
 			if (pws == null) {
 				log.warn("Could not save reconciliation history. Malformed schedule group {} is missing a {} event.", schedule.getScheduleGroupId(), eventType);

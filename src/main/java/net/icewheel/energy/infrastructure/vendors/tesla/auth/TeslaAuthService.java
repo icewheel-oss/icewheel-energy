@@ -26,13 +26,13 @@ import java.security.spec.ECPoint;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import net.icewheel.energy.infrastructure.security.KeypairService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.domain.RegisteredRegion;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.PartnerAccountApiResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.PublicKeyApiResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TeslaTokenExchangeResult;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.TokenResponse;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.dto.UserMeResponse;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.security.KeypairService;
 import net.icewheel.energy.infrastructure.vendors.tesla.config.TeslaApiConfig;
 import net.icewheel.energy.infrastructure.vendors.tesla.exception.TeslaApiException;
 import net.icewheel.energy.infrastructure.vendors.tesla.repository.RegisteredRegionRepository;

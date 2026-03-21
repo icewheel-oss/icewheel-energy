@@ -93,6 +93,10 @@ If you prefer to run the application without Docker, you can do so using Maven.
 
 3. **Run the Application**
 
+   You can activate specific Spring profiles (e.g., `postgres` for production database or `local` for file logging) by using the `spring.profiles.active` property.
+
    ```bash
-   java -jar target/icewheel-energy-0.0.1-SNAPSHOT.jar
+   java -Dspring.profiles.active=local,postgres -jar target/icewheel-energy-*.jar
    ```
+
+   If you don't specify any profiles, the application will use the default configuration (H2 in-memory database and console logging).

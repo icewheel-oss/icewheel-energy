@@ -26,6 +26,30 @@ cycles based on your electricity tariff (e.g., on-peak and off-peak hours).
 
 **For full documentation, please see the [docs](./docs/index.md) directory.**
 
+## Weather‑Aware Scheduling
+
+IceWheel Energy can automatically adjust your Powerwall plan based on the weather forecast. When it predicts poor solar production for your location, it pre‑charges during off‑peak hours so you have enough energy for the next on‑peak window.
+
+### Key benefits
+- Spend less on on‑peak energy by topping up cheaply during off‑peak when tomorrow looks cloudy.
+- Keep a reliable backup reserve on stormy days without manual tweaks.
+- Fully automatic and privacy‑friendly — runs in your self‑hosted instance.
+- Transparent decisions — every evaluation is recorded in the Change History (audit trail).
+
+### How it works (at a glance)
+- Runs hourly by default and only when off‑peak (configurable via `app.weather-check.cron`).
+- Uses National Weather Service (NWS) data to compute a "sunshine percentage" for your location.
+- If a significant shortfall is predicted, creates temporary "start charge" and "stop charge" schedules to top up before on‑peak.
+- Respects your existing targets, caps, and a user‑set scaling factor; temporary schedules auto‑expire and enforcement is handled by the Powerwall State Reconciler.
+
+To use it:
+- Set your location (ZIP code) in your user preferences.
+- Create or edit a schedule and choose the Weather‑Aware type.
+
+Learn more:
+- Architecture overview: `docs/architecture/overview.md`
+- Scheduling internals: `docs/architecture/scheduling.md`
+
 ## Quick Start
 
 1.  **Clone the repository:**

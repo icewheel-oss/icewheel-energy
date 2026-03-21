@@ -1,0 +1,33 @@
+# This file controls which files and folders are available to the AI assistant.
+# The general pattern is to exclude everything first, then re-include specific
+# files and directories that are relevant for development context.
+
+# 1. Exclude everything by default.
+*
+
+# 2. Re-include specific files and directories.
+# Use a leading '!' to include a file or path.
+# Use a leading '/' to anchor the path to the project root.
+
+# Include build configuration
+!/pom.xml
+!/docker-compose.yml
+!/.github/
+
+# Include all source code
+!/src/main/
+
+# Include project documentation
+!/docs/
+!/local/**
+!/local/weather-plans
+
+# Include project guidelines
+!/GEMINI.md
+
+# Explicitly exclude any files that might contain secrets or local-only config,
+# even if they are inside an included directory. This is a good safety practice.
+.env
+*.iml
+.idea/
+target/

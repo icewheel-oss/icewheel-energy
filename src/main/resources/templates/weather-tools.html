@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head th:replace="~{fragments/header :: head(pageTitle='NWS Tools')}"></head>
+<body class="d-flex flex-column min-vh-100 bg-body-tertiary">
+
+<nav th:replace="~{fragments/header :: navbar(activePage='weather')}"></nav>
+
+<main class="container flex-grow-1 py-5">
+    <div id="alert-banner" class="alert alert-warning alert-dismissible fade show d-none" role="alert">
+        <strong>Warning!</strong> There are active weather alerts for your location.
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+
+    <h1 class="mb-4">NWS Tools</h1>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Weather Alerts</h5>
+                    <p class="card-text">View active weather alerts from the National Weather Service.</p>
+                    <button id="fetch-alerts" class="btn btn-primary">Fetch Alerts</button>
+                    <button id="copy-alerts" class="btn btn-secondary">Copy</button>
+                    <div id="alerts-container" class="mt-3 overflow-auto text-wrap bg-light border rounded p-3" style="max-height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">NWS Glossary</h5>
+                    <p class="card-text">Browse the National Weather Service glossary of terms.</p>
+                    <button id="fetch-glossary" class="btn btn-primary">Fetch Glossary</button>
+                    <button id="copy-glossary" class="btn btn-secondary">Copy</button>
+                    <div id="glossary-container" class="mt-3 overflow-auto text-wrap border rounded p-3" style="max-height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Weather Stations</h5>
+                    <p class="card-text">Find weather stations near you.</p>
+                    <button id="fetch-stations" class="btn btn-primary">Fetch Stations</button>
+                    <button id="copy-stations" class="btn btn-secondary">Copy</button>
+                    <div id="stations-container" class="mt-3 overflow-auto text-wrap border rounded p-3" style="max-height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">NWS Text Products</h5>
+                    <p class="card-text">View text products from the National Weather Service.</p>
+                    <button id="fetch-products" class="btn btn-primary">Fetch Products</button>
+                    <button id="copy-products" class="btn btn-secondary">Copy</button>
+                    <div id="products-container" class="mt-3 overflow-auto text-wrap bg-light border rounded p-3" style="max-height: 400px;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</main>
+
+<div class="modal fade" id="alert-modal" tabindex="-1" aria-labelledby="alert-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="alert-modal-label">Alert Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                ...
+            </div>
+        </div>
+    </div>
+</div>
+
+<footer th:replace="~{fragments/footer :: page_footer}"></footer>
+<div th:replace="~{fragments/footer :: scripts}"></div>
+
+<script th:src="@{/js/weather-tools.js}"></script>
+
+</body>
+</html>

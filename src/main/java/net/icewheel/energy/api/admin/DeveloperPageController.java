@@ -23,8 +23,8 @@ import java.util.Map;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import net.icewheel.energy.infrastructure.security.KeypairService;
 import net.icewheel.energy.infrastructure.vendors.tesla.auth.TeslaAuthService;
+import net.icewheel.energy.infrastructure.vendors.tesla.auth.security.KeypairService;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;

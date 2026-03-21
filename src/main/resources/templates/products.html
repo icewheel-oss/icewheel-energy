@@ -31,17 +31,9 @@
         </div>
 
         <!-- Case 1: Tesla account is NOT connected -->
-        <div th:if="${!teslaConnected}" class="text-center p-5 bg-body-tertiary rounded-3">
-            <i class="bi bi-stars display-3 text-primary"></i>
-            <h1 class="display-5 fw-bold mt-3">Unlock Your Home's Energy Potential</h1>
-            <p class="col-lg-8 mx-auto fs-5 text-muted">
-                Connect your Tesla account to automate your energy usage, maximize savings, and gain full control over your Powerwall and solar systems.
-            </p>
-            <a href="/api/tesla/fleet/auth/url" class="btn btn-primary btn-lg mt-3">
-                <i class="bi bi-plug-fill me-2"></i>
-                Securely Connect to Tesla
-            </a>
-        </div>
+        <th:block th:if="${!teslaConnected}">
+            <div th:replace="~{fragments/tesla-connect :: tesla-connect-prompt}"></div>
+        </th:block>
 
         <!-- Case 2: No products found -->
         <div th:if="${teslaConnected and products.isEmpty()}" class="text-center p-5 bg-body-tertiary rounded-3">
@@ -105,7 +97,7 @@
                 </div>
 
                 <!-- Battery Card -->
-                <div class="col" th:if="${product.resourceType == 'battery'}">
+                <div class="col" th:if="${product.resourceType == 'battery'}" th:attr="data-site-id=${product.energySiteId}">
                     <div class="card h-100 shadow-sm">
                         <div class="card-header d-flex justify-content-between align-items-center">
                             <h5 class="mb-0" th:text="${product.siteName}">Site Name</h5>
@@ -120,10 +112,10 @@
                             <div class="mb-4">
                                 <div class="d-flex justify-content-between align-items-end mb-1">
                                     <span class="text-muted">Battery Level</span>
-                                    <span class="h4 mb-0" th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 1)} + '%'"></span>
+                                    <span class="h4 mb-0" data-field="percentage-charged" th:text="${#numbers.formatDecimal(product.percentageCharged, 1, 1)} + '%'"></span>
                                 </div>
                                 <div class="progress" role="progressbar" aria-label="Battery level" th:aria-valuenow="${product.percentageCharged}" aria-valuemin="0" aria-valuemax="100" style="height: 20px;">
-                                    <div class="progress-bar"
+                                    <div class="progress-bar" data-field="percentage-charged-bar"
                                          th:style="'width: ' + ${product.percentageCharged} + '%'"
                                          th:classappend="|${product.percentageCharged > 70 ? 'bg-success' : (product.percentageCharged > 30 ? 'bg-warning' : 'bg-danger')} ${product.batteryPower < -50 or product.batteryPower > 50 ? 'progress-bar-striped progress-bar-animated' : ''}|"></div>
                                 </div>
@@ -134,7 +126,7 @@
                                 - Positive batteryPower (> 0): The battery is discharging (supplying power).
                                 - Negative batteryPower (< 0): The battery is charging (storing power).
                             -->
-                            <div class="d-flex justify-content-between align-items-center p-3 mb-3 rounded-3 bg-body-tertiary">
+                            <div class="d-flex justify-content-between align-items-center p-3 mb-3 rounded-3 bg-body-tertiary" data-field="power-flow-status">
                                 <div th:with="power=${product.batteryPower / 1000}">
                                     <!-- Discharging -->
                                     <div th:if="${power > 0.05}" class="d-flex align-items-center text-primary">
@@ -161,7 +153,7 @@
                                         </div>
                                     </div>
                                 </div>
-                                <span class="fw-bold fs-5"
+                                <span class="fw-bold fs-5" data-field="battery-power"
                                       th:text="${#numbers.formatDecimal(T(java.lang.Math).abs(product.batteryPower / 1000), 1, 2)} + ' kW'"></span>
                             </div>
 
@@ -171,7 +163,7 @@
                                         <i class="bi bi-lightning-fill me-2 text-secondary"></i>
                                         Energy Left
                                     </div>
-                                    <span class="fw-bold"
+                                    <span class="fw-bold" data-field="energy-left"
                                           th:text="${#numbers.formatDecimal(product.energyLeft / 1000, 1, 1)} + ' kWh'"></span>
                                 </li>
                                 <li class="list-group-item d-flex justify-content-between align-items-center px-0">
